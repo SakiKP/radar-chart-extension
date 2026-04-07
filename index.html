@@ -1,1161 +1,780 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Radar Chart</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-  <script src="https://extensiongallery.tableau.com/resources/tableau.extensions.1.latest.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8"/>
+<title>Radar Chart</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+#app{width:100vw;height:100vh;position:relative;display:flex;align-items:center;justify-content:center}
+#radar-svg{display:block;overflow:visible}
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: transparent;
-      overflow: hidden;
-      width: 100vw; height: 100vh;
-    }
+/* Settings button */
+#settings-btn{
+  position:fixed;top:8px;right:8px;z-index:200;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,255,255,.92);border:1px solid #ccc;
+  cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 5px rgba(0,0,0,.15);transition:background .15s;
+}
+#settings-btn:hover{background:#e8f0fe}
 
-    #app { width: 100%; height: 100%; position: relative; }
+/* Format panel */
+#fp{
+  position:fixed;top:0;right:0;bottom:0;width:290px;
+  background:#fff;border-left:1px solid #ddd;
+  box-shadow:-3px 0 12px rgba(0,0,0,.1);
+  z-index:300;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .25s ease;
+}
+#fp.open{transform:translateX(0)}
+.fp-hdr{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid #e0e0e0;background:#f7f7f7}
+.fp-hdr h3{font-size:13px;font-weight:600;color:#333}
+.fp-x{background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1}
+.fp-x:hover{color:#333}
 
-    /* ── Chart area ─────────────────────────────────────────────────── */
-    #chart-wrap {
-      width: 100%; height: 100%;
-      display: flex; align-items: center; justify-content: center;
-      position: relative;
-    }
-    #radar-svg { display: block; }
+/* Tabs */
+.fp-tabs{display:flex;background:#f0f0f0;border-bottom:1px solid #ddd;overflow-x:auto}
+.fp-tab{padding:8px 11px;font-size:11px;font-weight:500;cursor:pointer;
+  color:#666;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s}
+.fp-tab.on{color:#1a73e8;border-bottom-color:#1a73e8;background:#fff}
+.fp-tab:hover:not(.on){background:#e4e4e4}
 
-    /* ── Settings toggle button ─────────────────────────────────────── */
-    #settings-btn {
-      position: absolute; top: 8px; right: 8px; z-index: 200;
-      width: 30px; height: 30px; border-radius: 50%;
-      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
-      cursor: pointer; font-size: 15px; display: flex;
-      align-items: center; justify-content: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,.15);
-      transition: background .15s;
-    }
-    #settings-btn:hover { background: #e8f0fe; }
+/* Tab body */
+.fp-body{flex:1;overflow-y:auto;padding:12px 14px}
+.fp-page{display:none}.fp-page.on{display:block}
+.sec{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;
+  letter-spacing:.5px;margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid #eee}
+.sec:first-child{margin-top:2px}
+.row{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:8px}
+.row label{font-size:11px;color:#444;min-width:88px}
+.row select,.row input[type=number],.row input[type=text]{
+  font-size:11px;border:1px solid #ccc;border-radius:3px;
+  padding:3px 6px;flex:1;max-width:130px;background:#fff;color:#333}
+.row input[type=range]{flex:1;accent-color:#1a73e8}
+.row input[type=color]{border:1px solid #ccc;border-radius:3px;padding:0;height:24px;width:40px;cursor:pointer}
+.row input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1a73e8}
+.vl{font-size:11px;min-width:26px;text-align:right;color:#555}
 
-    /* ── Loading / Error ──────────────────────────────────────────────── */
-    #overlay {
-      position: absolute; inset: 0; display: flex;
-      flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(255,255,255,.9); z-index: 50;
-      gap: 12px; padding: 24px; text-align: center;
-    }
-    #overlay .spinner {
-      width: 36px; height: 36px; border: 3px solid #e0e0e0;
-      border-top-color: #4e79a7; border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #overlay p { color: #555; font-size: 13px; }
-    #overlay.hidden { display: none; }
+/* Color list */
+#color-list{display:flex;flex-direction:column;gap:7px}
+.ce{display:flex;align-items:center;gap:8px;font-size:11px;color:#333}
+.ce input[type=color]{height:22px;width:34px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0}
 
-    /* ── Format Panel ──────────────────────────────────────────────── */
-    #format-panel {
-      position: absolute; top: 0; right: 0; bottom: 0;
-      width: 290px; background: #fff;
-      border-left: 1px solid #ddd;
-      box-shadow: -2px 0 8px rgba(0,0,0,.1);
-      z-index: 100; display: flex; flex-direction: column;
-      transform: translateX(100%);
-      transition: transform .25s ease;
-    }
-    #format-panel.open { transform: translateX(0); }
+/* Palette chips */
+.pal-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.pal-btn{font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff}
+.pal-btn:hover{background:#e8f0fe}
 
-    .fp-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 14px; border-bottom: 1px solid #e0e0e0;
-      background: #f7f7f7;
-    }
-    .fp-header h3 { font-size: 13px; font-weight: 600; color: #333; }
-    .fp-close {
-      background: none; border: none; font-size: 18px;
-      cursor: pointer; color: #666; line-height: 1;
-    }
-    .fp-close:hover { color: #333; }
+/* Apply btn */
+#apply-btn{margin:12px 14px;padding:8px 0;background:#1a73e8;color:#fff;
+  border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;
+  width:calc(100% - 28px)}
+#apply-btn:hover{background:#1558b0}
 
-    /* Tab bar */
-    .fp-tabs {
-      display: flex; background: #f0f0f0;
-      border-bottom: 1px solid #ddd; overflow-x: auto;
-    }
-    .fp-tab {
-      padding: 8px 12px; font-size: 11px; font-weight: 500;
-      cursor: pointer; color: #666; white-space: nowrap;
-      border-bottom: 2px solid transparent;
-      transition: color .15s, border-color .15s;
-    }
-    .fp-tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
-    .fp-tab:hover:not(.active) { background: #e4e4e4; }
+/* Data config modal */
+#dc{position:fixed;inset:0;background:rgba(255,255,255,.97);z-index:400;
+  padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;overflow-y:auto}
+#dc.hidden{display:none}
+#dc h2{font-size:15px;font-weight:700;color:#333}
+#dc p{font-size:12px;color:#666;text-align:center;max-width:340px}
+.dcr{display:flex;flex-direction:column;gap:4px;width:100%;max-width:340px}
+.dcr label{font-size:11px;font-weight:600;color:#444}
+.dcr select{padding:6px 8px;font-size:12px;border:1px solid #ccc;border-radius:4px;background:#fff}
+#dc-spokes{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px;
+  max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:4px;padding:8px}
+.dcs-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#333}
+#dc-ok{padding:9px 28px;background:#1a73e8;color:#fff;border:none;
+  border-radius:4px;font-size:13px;font-weight:600;cursor:pointer}
+#dc-ok:hover{background:#1558b0}
+.dc-note{font-size:10px;color:#999;font-style:italic;text-align:center;max-width:340px}
 
-    /* Tab content */
-    .fp-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
-    .fp-page { display: none; }
-    .fp-page.active { display: block; }
+/* Overlay */
+#ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(255,255,255,.9);z-index:500;gap:12px}
+#ov.hidden{display:none}
+.spin{width:34px;height:34px;border:3px solid #e0e0e0;border-top-color:#4e79a7;
+  border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#ov p{font-size:13px;color:#555;text-align:center;max-width:300px}
 
-    /* Form elements */
-    .fp-row {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px; gap: 8px;
-    }
-    .fp-row label { font-size: 11px; color: #444; min-width: 90px; }
-    .fp-row select, .fp-row input[type="number"], .fp-row input[type="text"] {
-      font-size: 11px; border: 1px solid #ccc; border-radius: 3px;
-      padding: 3px 6px; flex: 1; max-width: 130px;
-      background: #fff; color: #333;
-    }
-    .fp-row input[type="color"] {
-      border: 1px solid #ccc; border-radius: 3px; padding: 0;
-      height: 24px; width: 40px; cursor: pointer;
-    }
-    .fp-row input[type="range"] {
-      flex: 1; accent-color: #1a73e8;
-    }
-    .fp-row input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
-    .fp-section-title {
-      font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase;
-      letter-spacing: .5px; margin: 14px 0 6px; padding-bottom: 4px;
-      border-bottom: 1px solid #eee;
-    }
-    .fp-section-title:first-child { margin-top: 4px; }
-
-    /* Color list */
-    #color-list { display: flex; flex-direction: column; gap: 6px; }
-    .color-entry {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 11px; color: #333;
-    }
-    .color-entry input[type="color"] {
-      height: 22px; width: 36px; border: 1px solid #ccc;
-      border-radius: 3px; cursor: pointer; padding: 0;
-    }
-
-    /* Apply button */
-    #apply-btn {
-      margin: 12px 14px; padding: 8px 0; background: #1a73e8;
-      color: #fff; border: none; border-radius: 4px; font-size: 12px;
-      font-weight: 600; cursor: pointer; width: calc(100% - 28px);
-      transition: background .15s;
-    }
-    #apply-btn:hover { background: #1558b0; }
-
-    /* Data config panel */
-    #data-config {
-      position: absolute; inset: 0; background: rgba(255,255,255,.97);
-      z-index: 150; padding: 24px; display: flex; flex-direction: column;
-      align-items: center; gap: 14px;
-    }
-    #data-config h2 { font-size: 15px; font-weight: 700; color: #333; }
-    #data-config p { font-size: 12px; color: #666; text-align: center; max-width: 340px; }
-    #data-config.hidden { display: none; }
-    .dc-row { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 340px; }
-    .dc-row label { font-size: 11px; font-weight: 600; color: #444; }
-    .dc-row select {
-      padding: 6px 8px; font-size: 12px; border: 1px solid #ccc;
-      border-radius: 4px; background: #fff; color: #333;
-    }
-    #dc-spokes-list { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 340px; }
-    .dc-spoke-row {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 11px; color: #333;
-    }
-    .dc-spoke-row input[type="checkbox"] { cursor: pointer; }
-    #dc-apply {
-      padding: 9px 28px; background: #1a73e8; color: #fff; border: none;
-      border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer;
-      margin-top: 6px;
-    }
-    #dc-apply:hover { background: #1558b0; }
-    .dc-note { font-size: 10px; color: #999; font-style: italic; }
-  </style>
+/* Tooltip */
+#tt{position:fixed;pointer-events:none;background:rgba(25,25,25,.88);color:#fff;
+  font-size:11px;padding:6px 10px;border-radius:4px;display:none;z-index:600;
+  line-height:1.6;max-width:200px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+</style>
 </head>
 <body>
-<div id="app">
+<div id="app"><svg id="radar-svg"></svg></div>
+<button id="settings-btn" title="Format">⚙</button>
 
-  <!-- Loading overlay -->
-  <div id="overlay">
-    <div class="spinner"></div>
-    <p id="overlay-msg">Connecting to Tableau…</p>
+<!-- Loading overlay -->
+<div id="ov"><div class="spin"></div><p id="ov-msg">Connecting to Tableau…</p></div>
+
+<!-- Data config modal -->
+<div id="dc" class="hidden">
+  <h2>⬡ Configure Radar Chart</h2>
+  <p>Select your <strong>Color/Group dimension</strong> then tick the columns that will become <strong>spokes</strong>.</p>
+  <div class="dcr"><label>Color / Group dimension</label><select id="dc-dim"></select></div>
+  <div class="dcr"><label>Spokes (measure columns)</label><div id="dc-spokes"></div></div>
+  <p class="dc-note">Tip: numeric columns make the best spokes.</p>
+  <button id="dc-ok">Apply</button>
+</div>
+
+<!-- Format panel -->
+<div id="fp">
+  <div class="fp-hdr"><h3>Format Extension</h3><button class="fp-x" id="fp-x">✕</button></div>
+  <div class="fp-tabs">
+    <div class="fp-tab on" data-t="radar">Radar</div>
+    <div class="fp-tab" data-t="grid">Grid</div>
+    <div class="fp-tab" data-t="color">Color</div>
+    <div class="fp-tab" data-t="labels">Labels</div>
+    <div class="fp-tab" data-t="data">Data</div>
+    <div class="fp-tab" data-t="sheet">Sheet</div>
   </div>
+  <div class="fp-body">
 
-  <!-- Data configuration modal -->
-  <div id="data-config" class="hidden">
-    <h2>Configure Radar Chart</h2>
-    <p>Select your data fields below. Each checked column becomes a spoke on the radar chart.</p>
-    <div class="dc-row">
-      <label>Color / Group dimension</label>
-      <select id="dc-dim"></select>
+    <!-- RADAR -->
+    <div class="fp-page on" data-p="radar">
+      <div class="sec">Line</div>
+      <div class="row"><label>Line style</label>
+        <select id="c-lineStyle">
+          <option value="cardinal">Cardinal (smooth)</option>
+          <option value="linear">Linear</option>
+          <option value="step">Step</option>
+        </select></div>
+      <div class="row"><label>Stroke width</label>
+        <input type="range" id="c-sw" min=".5" max="8" step=".5" value="2"/>
+        <span class="vl" id="c-sw-v">2</span></div>
+      <div class="row"><label>Fill opacity %</label>
+        <input type="range" id="c-fo" min="0" max="100" step="5" value="30"/>
+        <span class="vl" id="c-fo-v">30</span></div>
+      <div class="sec">Marker</div>
+      <div class="row"><label>Shape</label>
+        <select id="c-ms">
+          <option value="circle">Circle</option>
+          <option value="square">Square</option>
+          <option value="diamond">Diamond</option>
+          <option value="none">None</option>
+        </select></div>
+      <div class="row"><label>Size</label>
+        <input type="range" id="c-mz" min="0" max="12" step="1" value="4"/>
+        <span class="vl" id="c-mz-v">4</span></div>
+      <div class="sec">Layout</div>
+      <div class="row"><label>Rotation °</label>
+        <input type="range" id="c-rot" min="-180" max="180" step="5" value="0"/>
+        <span class="vl" id="c-rot-v">0°</span></div>
+      <div class="row"><label>Margin px</label>
+        <input type="range" id="c-mg" min="20" max="140" step="5" value="70"/>
+        <span class="vl" id="c-mg-v">70</span></div>
+      <div class="row"><label>Auto range</label><input type="checkbox" id="c-ar" checked/></div>
+      <div class="row" id="row-mv" style="display:none"><label>Max value</label>
+        <input type="number" id="c-mv" value="100" min="1"/></div>
     </div>
-    <div class="dc-row">
-      <label>Spokes (select measure columns)</label>
-      <div id="dc-spokes-list"></div>
-    </div>
-    <p class="dc-note">Tip: place measures in Columns shelf and your dimension in Color shelf for best results.</p>
-    <button id="dc-apply">Apply</button>
-  </div>
 
-  <!-- Main chart area -->
-  <div id="chart-wrap">
-    <svg id="radar-svg"></svg>
-  </div>
-
-  <!-- Settings toggle -->
-  <button id="settings-btn" title="Format">⚙</button>
-
-  <!-- Format panel -->
-  <div id="format-panel">
-    <div class="fp-header">
-      <h3>Format Extension</h3>
-      <button class="fp-close" id="fp-close">✕</button>
-    </div>
-    <div class="fp-tabs">
-      <div class="fp-tab active" data-tab="radar">Radar</div>
-      <div class="fp-tab" data-tab="grid">Grid</div>
-      <div class="fp-tab" data-tab="color">Color</div>
-      <div class="fp-tab" data-tab="labels">Labels</div>
-      <div class="fp-tab" data-tab="data">Data</div>
-      <div class="fp-tab" data-tab="sheet">Sheet</div>
+    <!-- GRID -->
+    <div class="fp-page" data-p="grid">
+      <div class="sec">Shape</div>
+      <div class="row"><label>Grid type</label>
+        <select id="c-gt">
+          <option value="circle">Circular</option>
+          <option value="polygon">Polygon</option>
+        </select></div>
+      <div class="row"><label>Levels</label>
+        <input type="range" id="c-gl" min="2" max="10" step="1" value="5"/>
+        <span class="vl" id="c-gl-v">5</span></div>
+      <div class="sec">Style</div>
+      <div class="row"><label>Dash style</label>
+        <select id="c-gd">
+          <option value="4,4">Dashed</option>
+          <option value="0">Solid</option>
+          <option value="2,6">Dotted</option>
+        </select></div>
+      <div class="row"><label>Grid color</label><input type="color" id="c-gc" value="#cccccc"/></div>
+      <div class="row"><label>Grid opacity %</label>
+        <input type="range" id="c-go" min="0" max="100" step="5" value="60"/>
+        <span class="vl" id="c-go-v">60</span></div>
+      <div class="sec">Spokes</div>
+      <div class="row"><label>Show spokes</label><input type="checkbox" id="c-ss" checked/></div>
+      <div class="row"><label>Spoke color</label><input type="color" id="c-sc" value="#bbbbbb"/></div>
     </div>
 
-    <div class="fp-body">
-
-      <!-- RADAR TAB -->
-      <div class="fp-page active" data-page="radar">
-        <div class="fp-section-title">Line</div>
-        <div class="fp-row">
-          <label>Line style</label>
-          <select id="cfg-lineStyle">
-            <option value="cardinal">Cardinal</option>
-            <option value="linear">Linear</option>
-            <option value="step">Step</option>
-            <option value="basis">Basis</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Stroke width</label>
-          <input type="range" id="cfg-strokeWidth" min="0.5" max="8" step="0.5" value="2"/>
-          <span id="cfg-strokeWidth-val" style="font-size:11px;min-width:24px;text-align:right">2</span>
-        </div>
-        <div class="fp-row">
-          <label>Fill opacity</label>
-          <input type="range" id="cfg-fillOpacity" min="0" max="100" step="5" value="30"/>
-          <span id="cfg-fillOpacity-val" style="font-size:11px;min-width:24px;text-align:right">30</span>
-        </div>
-
-        <div class="fp-section-title">Marker</div>
-        <div class="fp-row">
-          <label>Marker shape</label>
-          <select id="cfg-markerShape">
-            <option value="circle">Circle</option>
-            <option value="square">Square</option>
-            <option value="diamond">Diamond</option>
-            <option value="none">None</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Marker size</label>
-          <input type="range" id="cfg-markerSize" min="0" max="12" step="1" value="4"/>
-          <span id="cfg-markerSize-val" style="font-size:11px;min-width:24px;text-align:right">4</span>
-        </div>
-
-        <div class="fp-section-title">Layout</div>
-        <div class="fp-row">
-          <label>Rotation (°)</label>
-          <input type="range" id="cfg-rotation" min="-180" max="180" step="5" value="0"/>
-          <span id="cfg-rotation-val" style="font-size:11px;min-width:28px;text-align:right">0°</span>
-        </div>
-        <div class="fp-row">
-          <label>Margin</label>
-          <input type="range" id="cfg-margin" min="10" max="120" step="5" value="60"/>
-          <span id="cfg-margin-val" style="font-size:11px;min-width:28px;text-align:right">60</span>
-        </div>
-        <div class="fp-row">
-          <label>Auto range</label>
-          <input type="checkbox" id="cfg-autoRange" checked/>
-        </div>
-        <div class="fp-row" id="row-maxValue">
-          <label>Max value</label>
-          <input type="number" id="cfg-maxValue" value="100" min="1"/>
-        </div>
+    <!-- COLOR -->
+    <div class="fp-page" data-p="color">
+      <div class="sec">Series colors</div>
+      <p style="font-size:11px;color:#666;margin-bottom:10px">Assign a color to each category.</p>
+      <div id="color-list"></div>
+      <div class="sec" style="margin-top:14px">Palette presets</div>
+      <div class="pal-row">
+        <button class="pal-btn" data-pal="tableau10">Tableau 10</button>
+        <button class="pal-btn" data-pal="pastel">Pastel</button>
+        <button class="pal-btn" data-pal="muted">Muted</button>
+        <button class="pal-btn" data-pal="bluepurple">Blue-Purple</button>
       </div>
+    </div>
 
-      <!-- GRID TAB -->
-      <div class="fp-page" data-page="grid">
-        <div class="fp-section-title">Grid shape</div>
-        <div class="fp-row">
-          <label>Grid type</label>
-          <select id="cfg-gridType">
-            <option value="circle">Circular</option>
-            <option value="polygon">Polygon</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Grid levels</label>
-          <input type="range" id="cfg-gridLevels" min="2" max="10" step="1" value="5"/>
-          <span id="cfg-gridLevels-val" style="font-size:11px;min-width:24px;text-align:right">5</span>
-        </div>
-        <div class="fp-row">
-          <label>Grid line style</label>
-          <select id="cfg-gridDash">
-            <option value="4,4">Dashed</option>
-            <option value="none">Solid</option>
-            <option value="2,6">Dotted</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Grid color</label>
-          <input type="color" id="cfg-gridColor" value="#cccccc"/>
-        </div>
-        <div class="fp-row">
-          <label>Grid opacity</label>
-          <input type="range" id="cfg-gridOpacity" min="0" max="100" step="5" value="60"/>
-          <span id="cfg-gridOpacity-val" style="font-size:11px;min-width:24px;text-align:right">60</span>
-        </div>
+    <!-- LABELS -->
+    <div class="fp-page" data-p="labels">
+      <div class="sec">Spoke Labels</div>
+      <div class="row"><label>Show labels</label><input type="checkbox" id="c-sl" checked/></div>
+      <div class="row"><label>Font size</label>
+        <input type="range" id="c-sfs" min="8" max="20" step="1" value="11"/>
+        <span class="vl" id="c-sfs-v">11</span></div>
+      <div class="row"><label>Font weight</label>
+        <select id="c-sfw"><option value="normal">Normal</option><option value="bold" selected>Bold</option></select></div>
+      <div class="row"><label>Font color</label><input type="color" id="c-sfc" value="#333333"/></div>
+      <div class="row"><label>Padding</label>
+        <input type="range" id="c-slp" min="4" max="36" step="1" value="14"/>
+        <span class="vl" id="c-slp-v">14</span></div>
+      <div class="sec">Axis Ticks</div>
+      <div class="row"><label>Show ticks</label><input type="checkbox" id="c-st"/></div>
+      <div class="row"><label>Tick size</label>
+        <input type="range" id="c-tfs" min="7" max="16" step="1" value="9"/>
+        <span class="vl" id="c-tfs-v">9</span></div>
+      <div class="row"><label>Tick decimals</label><input type="number" id="c-td" min="0" max="4" value="0"/></div>
+      <div class="sec">Legend</div>
+      <div class="row"><label>Show legend</label><input type="checkbox" id="c-lg" checked/></div>
+      <div class="row"><label>Position</label>
+        <select id="c-lp">
+          <option value="tr">Top Right</option>
+          <option value="tl">Top Left</option>
+          <option value="br">Bottom Right</option>
+          <option value="bl">Bottom Left</option>
+        </select></div>
+      <div class="row"><label>Legend size</label>
+        <input type="range" id="c-lfs" min="8" max="18" step="1" value="11"/>
+        <span class="vl" id="c-lfs-v">11</span></div>
+    </div>
 
-        <div class="fp-section-title">Spokes</div>
-        <div class="fp-row">
-          <label>Show spokes</label>
-          <input type="checkbox" id="cfg-showSpokes" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Spoke color</label>
-          <input type="color" id="cfg-spokeColor" value="#bbbbbb"/>
-        </div>
-      </div>
+    <!-- DATA -->
+    <div class="fp-page" data-p="data">
+      <div class="sec">Field mapping</div>
+      <button id="reconfig-btn" style="padding:8px;background:#1a73e8;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;width:100%;margin-bottom:10px">
+        Reconfigure fields…
+      </button>
+      <div class="sec">Aggregation</div>
+      <div class="row"><label>Aggregate by</label>
+        <select id="c-agg">
+          <option value="avg">Average</option>
+          <option value="sum">Sum</option>
+          <option value="max">Max</option>
+          <option value="min">Min</option>
+        </select></div>
+      <div class="sec">Tooltip</div>
+      <div class="row"><label>Show tooltip</label><input type="checkbox" id="c-tt" checked/></div>
+      <div class="row"><label>Decimals</label><input type="number" id="c-ttd" min="0" max="4" value="1"/></div>
+    </div>
 
-      <!-- COLOR TAB -->
-      <div class="fp-page" data-page="color">
-        <div class="fp-section-title">Series colors</div>
-        <p style="font-size:11px;color:#666;margin-bottom:10px;">
-          Assign a color to each category in your dimension field.
-        </p>
-        <div id="color-list"></div>
-        <div class="fp-section-title" style="margin-top:14px">Palette presets</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-          <button class="palette-btn" data-palette="tableau10" style="font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff">Tableau 10</button>
-          <button class="palette-btn" data-palette="pastel" style="font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff">Pastel</button>
-          <button class="palette-btn" data-palette="muted" style="font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff">Muted</button>
-          <button class="palette-btn" data-palette="bluepurple" style="font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff">Blue-Purple</button>
-        </div>
-      </div>
+    <!-- SHEET -->
+    <div class="fp-page" data-p="sheet">
+      <div class="sec">Background</div>
+      <div class="row"><label>Transparent</label><input type="checkbox" id="c-tb" checked/></div>
+      <div class="row"><label>BG color</label><input type="color" id="c-bg" value="#ffffff"/></div>
+      <div class="sec">Animation</div>
+      <div class="row"><label>Animate</label><input type="checkbox" id="c-an" checked/></div>
+    </div>
 
-      <!-- LABELS TAB -->
-      <div class="fp-page" data-page="labels">
-        <div class="fp-section-title">Spokes Labels</div>
-        <div class="fp-row">
-          <label>Show labels</label>
-          <input type="checkbox" id="cfg-showSpokeLabels" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Font size (px)</label>
-          <input type="range" id="cfg-spokeFontSize" min="8" max="20" step="1" value="11"/>
-          <span id="cfg-spokeFontSize-val" style="font-size:11px;min-width:24px;text-align:right">11</span>
-        </div>
-        <div class="fp-row">
-          <label>Font weight</label>
-          <select id="cfg-spokeFontWeight">
-            <option value="normal">Normal</option>
-            <option value="bold" selected>Bold</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Font color</label>
-          <input type="color" id="cfg-spokeFontColor" value="#333333"/>
-        </div>
-        <div class="fp-row">
-          <label>Padding</label>
-          <input type="range" id="cfg-spokeLabelPad" min="4" max="30" step="1" value="12"/>
-          <span id="cfg-spokeLabelPad-val" style="font-size:11px;min-width:24px;text-align:right">12</span>
-        </div>
+  </div><!-- /.fp-body -->
+  <button id="apply-btn">Apply</button>
+</div><!-- /#fp -->
 
-        <div class="fp-section-title">Axis Tick Labels</div>
-        <div class="fp-row">
-          <label>Show ticks</label>
-          <input type="checkbox" id="cfg-showTicks"/>
-        </div>
-        <div class="fp-row">
-          <label>Tick font size</label>
-          <input type="range" id="cfg-tickFontSize" min="7" max="16" step="1" value="9"/>
-          <span id="cfg-tickFontSize-val" style="font-size:11px;min-width:24px;text-align:right">9</span>
-        </div>
-        <div class="fp-row">
-          <label>Tick decimals</label>
-          <input type="number" id="cfg-tickDecimals" min="0" max="4" value="0"/>
-        </div>
-
-        <div class="fp-section-title">Legend</div>
-        <div class="fp-row">
-          <label>Show legend</label>
-          <input type="checkbox" id="cfg-showLegend" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Position</label>
-          <select id="cfg-legendPos">
-            <option value="top-right">Top Right</option>
-            <option value="top-left">Top Left</option>
-            <option value="bottom-right">Bottom Right</option>
-            <option value="bottom-left">Bottom Left</option>
-          </select>
-        </div>
-        <div class="fp-row">
-          <label>Font size</label>
-          <input type="range" id="cfg-legendFontSize" min="8" max="18" step="1" value="11"/>
-          <span id="cfg-legendFontSize-val" style="font-size:11px;min-width:24px;text-align:right">11</span>
-        </div>
-      </div>
-
-      <!-- DATA TAB -->
-      <div class="fp-page" data-page="data">
-        <div class="fp-section-title">Field mapping</div>
-        <p style="font-size:11px;color:#666;margin-bottom:10px;">Reconfigure which columns are spokes and which column is the color/group dimension.</p>
-        <button id="reconfig-btn" style="padding:7px 14px;background:#1a73e8;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;width:100%">
-          Reconfigure fields…
-        </button>
-        <div class="fp-section-title" style="margin-top:14px">Aggregation</div>
-        <div class="fp-row">
-          <label>Aggregate by</label>
-          <select id="cfg-aggFn">
-            <option value="avg">Average</option>
-            <option value="sum">Sum</option>
-            <option value="max">Max</option>
-            <option value="min">Min</option>
-          </select>
-        </div>
-        <div class="fp-section-title">Tooltip</div>
-        <div class="fp-row">
-          <label>Show tooltip</label>
-          <input type="checkbox" id="cfg-showTooltip" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Tooltip decimals</label>
-          <input type="number" id="cfg-ttDecimals" min="0" max="4" value="1"/>
-        </div>
-      </div>
-
-      <!-- SHEET TAB -->
-      <div class="fp-page" data-page="sheet">
-        <div class="fp-section-title">Sheet</div>
-        <div class="fp-row">
-          <label>Background color</label>
-          <input type="color" id="cfg-bgColor" value="#ffffff"/>
-        </div>
-        <div class="fp-row">
-          <label>Transparent bg</label>
-          <input type="checkbox" id="cfg-transparentBg" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Fit Width</label>
-          <input type="checkbox" id="cfg-fitWidth" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Fit Height</label>
-          <input type="checkbox" id="cfg-fitHeight" checked/>
-        </div>
-        <div class="fp-row">
-          <label>Animate on draw</label>
-          <input type="checkbox" id="cfg-animate" checked/>
-        </div>
-      </div>
-
-    </div><!-- /.fp-body -->
-    <button id="apply-btn">Apply</button>
-  </div><!-- /#format-panel -->
-
-</div><!-- /#app -->
-
-<!-- Tooltip -->
-<div id="tooltip" style="
-  position:fixed;pointer-events:none;background:rgba(30,30,30,.88);
-  color:#fff;font-size:11px;padding:6px 10px;border-radius:4px;
-  display:none;z-index:500;line-height:1.6;max-width:200px;
-  box-shadow:0 2px 8px rgba(0,0,0,.2);
-"></div>
+<div id="tt"></div>
 
 <script>
-/* =========================================================
-   RADAR CHART TABLEAU VIZ EXTENSION
-   ========================================================= */
+/* =============================================================
+   RADAR CHART — STANDALONE TABLEAU VIZ EXTENSION
+   Pure vanilla JS + SVG. Zero external dependencies.
+   ============================================================= */
 
-// ── Color palettes ─────────────────────────────────────────
-const PALETTES = {
+// ── Palettes ──────────────────────────────────────────────
+const PAL = {
   tableau10: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'],
   pastel:    ['#aec6e8','#ffb347','#ff9999','#b5ead7','#c7ceea','#ffdac1','#e0b0ff','#ffc8a2','#d4e4bc','#f8c8d4'],
   muted:     ['#6d8b9c','#c78c56','#b05c5e','#6a9e98','#7a9e72','#c7a93e','#9b6e97','#c47e88','#8a6a55','#a89e9c'],
   bluepurple:['#4055a8','#6272c4','#8494de','#a6b0ed','#7b4eab','#9b6bc9','#b98ce3','#d4aeef','#5e3a8c','#8059b3']
 };
 
-// ── Config defaults ─────────────────────────────────────────
-let CONFIG = {
-  lineStyle:'cardinal', strokeWidth:2, fillOpacity:30,
-  autoRange:true, maxValue:100,
-  markerShape:'circle', markerSize:4,
-  rotation:0, margin:60,
-  gridType:'circle', gridLevels:5, gridDash:'4,4',
-  gridColor:'#cccccc', gridOpacity:60,
-  showSpokes:true, spokeColor:'#bbbbbb',
-  showSpokeLabels:true, spokeFontSize:11, spokeFontWeight:'bold',
-  spokeFontColor:'#333333', spokeLabelPad:12,
-  showTicks:false, tickFontSize:9, tickDecimals:0,
-  showLegend:true, legendPos:'top-right', legendFontSize:11,
-  aggFn:'avg', showTooltip:true, ttDecimals:1,
-  bgColor:'#ffffff', transparentBg:true,
-  fitWidth:true, fitHeight:true, animate:true,
-  seriesColors:{}, // keyed by dimension value
-  // data config
-  dimField:null,   // column name for color/group
-  spokeFields:[]   // list of column names for spokes
+// ── Config ─────────────────────────────────────────────────
+let C = {
+  lineStyle:'cardinal', sw:2, fo:30,
+  ms:'circle', mz:4,
+  rot:0, mg:70,
+  ar:true, mv:100,
+  gt:'circle', gl:5, gd:'4,4',
+  gc:'#cccccc', go:60,
+  ss:true, sc:'#bbbbbb',
+  sl:true, sfs:11, sfw:'bold', sfc:'#333333', slp:14,
+  st:false, tfs:9, td:0,
+  lg:true, lp:'tr', lfs:11,
+  agg:'avg', tt:true, ttd:1,
+  tb:true, bg:'#ffffff', an:true,
+  colors:{},
+  dimField:null, spokeFields:[]
 };
 
 // ── State ──────────────────────────────────────────────────
-let rawData = [];          // [{col:val, ...}, ...]
-let columnDefs = [];       // [{fieldName, dataType}, ...]
-let chartData = [];        // [{label:string, values:{spoke:num,...}}, ...]
-let spokeLabelMap = {};    // fieldName -> alias
+let rawData=[], colDefs=[], chartData=[];
 
-// ── DOM refs ───────────────────────────────────────────────
-const overlay     = document.getElementById('overlay');
-const overlayMsg  = document.getElementById('overlay-msg');
-const formatPanel = document.getElementById('format-panel');
-const settingsBtn = document.getElementById('settings-btn');
-const fpClose     = document.getElementById('fp-close');
-const dataConfig  = document.getElementById('data-config');
-const dcDim       = document.getElementById('dc-dim');
-const dcSpokeList = document.getElementById('dc-spokes-list');
-const dcApply     = document.getElementById('dc-apply');
-const colorList   = document.getElementById('color-list');
-const tooltip     = document.getElementById('tooltip');
+// ── DOM ────────────────────────────────────────────────────
+const ov     = id('ov'),
+      ovMsg  = id('ov-msg'),
+      fp     = id('fp'),
+      dc     = id('dc'),
+      dcDim  = id('dc-dim'),
+      dcSpk  = id('dc-spokes'),
+      dcOk   = id('dc-ok'),
+      svgEl  = id('radar-svg'),
+      ttEl   = id('tt');
 
-// ── Tableau init ───────────────────────────────────────────
-(async function init() {
-  try {
-    await tableau.extensions.initializeAsync({ 'configure': openDataConfig });
-    loadConfigFromSettings();
-    settingsBtn.style.display = 'flex';
+function id(x){return document.getElementById(x)}
+
+// ── Tableau init ────────────────────────────────────────────
+(async()=>{
+  // Tableau injects its API when loading local extensions.
+  // We wait briefly for it to be available.
+  let attempts=0;
+  while(typeof tableau==='undefined' && attempts++<30){
+    await sleep(200);
+  }
+  if(typeof tableau==='undefined'){
+    showOv('Demo mode — no Tableau connection detected.');
+    loadDemo(); draw(); return;
+  }
+  try{
+    await tableau.extensions.initializeAsync({configure:openDC});
+    loadCfg();
     await fetchData();
-  } catch (err) {
-    showOverlay('⚠ ' + (err.message || 'Initialization failed. Running in demo mode.'));
-    loadDemoData();
-    buildChart();
+  }catch(e){
+    showOv('⚠ '+( e.message||'Could not load data. Showing demo.'));
+    loadDemo(); draw();
   }
 })();
 
-function showOverlay(msg) {
-  overlay.classList.remove('hidden');
-  overlayMsg.textContent = msg;
-  overlay.querySelector('.spinner').style.display =
-    msg.startsWith('⚠') ? 'none' : 'block';
-}
-function hideOverlay() { overlay.classList.add('hidden'); }
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function showOv(m){ov.classList.remove('hidden');ovMsg.textContent=m;ov.querySelector('.spin').style.display=m.startsWith('⚠')||m.startsWith('Demo')?'none':'block'}
+function hideOv(){ov.classList.add('hidden')}
 
-// ── Settings persistence ───────────────────────────────────
-function loadConfigFromSettings() {
-  try {
-    const saved = tableau.extensions.settings.getAll();
-    if (saved && saved.cfg) Object.assign(CONFIG, JSON.parse(saved.cfg));
-  } catch(e){}
+// ── Settings persistence ────────────────────────────────────
+function saveCfg(){
+  try{tableau.extensions.settings.set('rc',JSON.stringify(C));tableau.extensions.settings.saveAsync()}catch(e){}
 }
-function saveConfigToSettings() {
-  try {
-    tableau.extensions.settings.set('cfg', JSON.stringify(CONFIG));
-    tableau.extensions.settings.saveAsync();
-  } catch(e){}
+function loadCfg(){
+  try{const s=tableau.extensions.settings.get('rc');if(s)Object.assign(C,JSON.parse(s))}catch(e){}
 }
 
-// ── Fetch data from Tableau ────────────────────────────────
-async function fetchData() {
-  showOverlay('Loading data…');
-  try {
-    const vizExtAPI = tableau.extensions.vizExtensionAPI;
-    const worksheet = vizExtAPI ? vizExtAPI.worksheet
-      : tableau.extensions.dashboardContent.dashboard.worksheets[0];
+// ── Fetch data ──────────────────────────────────────────────
+async function fetchData(){
+  showOv('Loading data…');
+  try{
+    const api=tableau.extensions.vizExtensionAPI;
+    const ws=api?api.worksheet:tableau.extensions.dashboardContent.dashboard.worksheets[0];
+    const sd=await ws.getSummaryDataAsync({maxRows:50000});
+    colDefs=sd.columns.map(c=>({name:c.fieldName,type:c.dataType,idx:c.index}));
+    rawData=sd.data.map(row=>Object.fromEntries(colDefs.map(c=>[c.name,row[c.idx]])));
 
-    const sumData = await worksheet.getSummaryDataAsync({ maxRows: 50000 });
-    columnDefs = sumData.columns.map(c => ({
-      fieldName: c.fieldName,
-      dataType: c.dataType,
-      index: c.index
-    }));
-    rawData = sumData.data.map(row =>
-      Object.fromEntries(columnDefs.map(c => [c.fieldName, row[c.index]]))
-    );
+    if(!C.dimField||!C.spokeFields.length){autoDetect();openDC();}
+    else{buildChartData();draw();}
 
-    // Auto-detect or use saved config
-    if (!CONFIG.dimField || !CONFIG.spokeFields.length) {
-      autoDetectFields();
-      openDataConfig();
-    } else {
-      buildChartData();
-      buildChart();
-    }
-
-    // Listen for data change
-    const evtType = tableau.TableauEventType
-      ? tableau.TableauEventType.SummaryDataChanged
-      : 'summary-data-changed';
-    worksheet.addEventListener(evtType, () => fetchData());
-
-    hideOverlay();
-  } catch (err) {
-    console.warn('Data fetch failed:', err);
-    showOverlay('⚠ Could not read worksheet data. Showing demo data.');
-    loadDemoData();
-    buildChart();
+    const et=tableau.TableauEventType?tableau.TableauEventType.SummaryDataChanged:'summary-data-changed';
+    ws.addEventListener(et,fetchData);
+    hideOv();
+  }catch(e){
+    console.warn(e);
+    showOv('⚠ Could not read worksheet. Showing demo data.');
+    loadDemo();draw();
   }
 }
 
-// ── Auto-detect numeric vs dimension columns ───────────────
-function autoDetectFields() {
-  const numTypes = ['float','integer','real'];
-  const potential = columnDefs.filter(c =>
-    numTypes.some(t => (c.dataType || '').toLowerCase().includes(t))
-  );
-  const dims = columnDefs.filter(c =>
-    !numTypes.some(t => (c.dataType || '').toLowerCase().includes(t))
-  );
-
-  CONFIG.spokeFields = potential.map(c => c.fieldName);
-  CONFIG.dimField = dims.length ? dims[0].fieldName : null;
+function autoDetect(){
+  const nums=['float','integer','real'];
+  C.spokeFields=colDefs.filter(c=>nums.some(t=>(c.type||'').toLowerCase().includes(t))).map(c=>c.name);
+  const dims=colDefs.filter(c=>!nums.some(t=>(c.type||'').toLowerCase().includes(t)));
+  C.dimField=dims.length?dims[0].name:null;
 }
 
-// ── Data config modal ──────────────────────────────────────
-function openDataConfig() {
-  // Populate dim dropdown
-  dcDim.innerHTML = '<option value="">— None (single series) —</option>';
-  columnDefs.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.fieldName;
-    opt.textContent = c.fieldName;
-    if (c.fieldName === CONFIG.dimField) opt.selected = true;
-    dcDim.appendChild(opt);
+// ── Data config modal ───────────────────────────────────────
+function openDC(){
+  dcDim.innerHTML='<option value="">— None (single series) —</option>';
+  colDefs.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=c.name;o.textContent=c.name+' ('+c.type+')';
+    if(c.name===C.dimField)o.selected=true;
+    dcDim.appendChild(o);
   });
-
-  // Populate spoke checkboxes
-  dcSpokeList.innerHTML = '';
-  columnDefs.forEach(c => {
-    const row = document.createElement('div');
-    row.className = 'dc-spoke-row';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = c.fieldName;
-    cb.id = 'dcspoke_' + c.fieldName;
-    if (CONFIG.spokeFields.includes(c.fieldName)) cb.checked = true;
-    const lbl = document.createElement('label');
-    lbl.htmlFor = cb.id;
-    lbl.textContent = c.fieldName + ` (${c.dataType || 'unknown'})`;
-    row.appendChild(cb); row.appendChild(lbl);
-    dcSpokeList.appendChild(row);
+  dcSpk.innerHTML='';
+  colDefs.forEach(c=>{
+    const r=document.createElement('div');r.className='dcs-row';
+    const cb=document.createElement('input');cb.type='checkbox';cb.value=c.name;
+    if(C.spokeFields.includes(c.name))cb.checked=true;
+    const l=document.createElement('label');l.textContent=c.name;
+    r.appendChild(cb);r.appendChild(l);dcSpk.appendChild(r);
   });
-
-  dataConfig.classList.remove('hidden');
+  dc.classList.remove('hidden');
 }
 
-dcApply.addEventListener('click', () => {
-  CONFIG.dimField = dcDim.value || null;
-  CONFIG.spokeFields = [...dcSpokeList.querySelectorAll('input[type=checkbox]:checked')]
-    .map(cb => cb.value);
-  if (!CONFIG.spokeFields.length) {
-    alert('Please select at least one spoke field.');
-    return;
-  }
-  saveConfigToSettings();
-  dataConfig.classList.add('hidden');
-  buildChartData();
-  buildChart();
-  hideOverlay();
+dcOk.addEventListener('click',()=>{
+  C.dimField=dcDim.value||null;
+  C.spokeFields=[...dcSpk.querySelectorAll('input:checked')].map(c=>c.value);
+  if(!C.spokeFields.length){alert('Select at least one spoke field.');return;}
+  saveCfg();dc.classList.add('hidden');
+  buildChartData();draw();hideOv();
 });
 
-document.getElementById('reconfig-btn').addEventListener('click', openDataConfig);
+id('reconfig-btn').addEventListener('click',openDC);
 
-// ── Build chartData from rawData + CONFIG ──────────────────
-function buildChartData() {
-  if (!rawData.length || !CONFIG.spokeFields.length) return;
-
-  const agg = CONFIG.aggFn;
-  const groups = {};
-
-  rawData.forEach(row => {
-    const key = CONFIG.dimField ? String(row[CONFIG.dimField]?.value ?? row[CONFIG.dimField] ?? 'Series') : 'Series';
-    if (!groups[key]) groups[key] = {};
-    CONFIG.spokeFields.forEach(sf => {
-      if (!groups[key][sf]) groups[key][sf] = [];
-      const raw = row[sf];
-      const v = raw && raw.value !== undefined ? raw.value : raw;
-      const n = parseFloat(v);
-      if (!isNaN(n)) groups[key][sf].push(n);
+// ── Build chart data ─────────────────────────────────────────
+function buildChartData(){
+  if(!rawData.length||!C.spokeFields.length)return;
+  const groups={};
+  rawData.forEach(row=>{
+    const key=C.dimField?String(row[C.dimField]?.value??row[C.dimField]??'Series'):'Series';
+    if(!groups[key])groups[key]={};
+    C.spokeFields.forEach(sf=>{
+      if(!groups[key][sf])groups[key][sf]=[];
+      const raw=row[sf];const v=raw?.value!==undefined?raw.value:raw;
+      const n=parseFloat(v);if(!isNaN(n))groups[key][sf].push(n);
     });
   });
-
-  chartData = Object.entries(groups).map(([label, fields]) => ({
+  chartData=Object.entries(groups).map(([label,fields])=>({
     label,
-    values: Object.fromEntries(
-      CONFIG.spokeFields.map(sf => {
-        const arr = fields[sf] || [0];
-        let v;
-        if (agg === 'avg') v = arr.reduce((a,b)=>a+b,0)/arr.length;
-        else if (agg === 'sum') v = arr.reduce((a,b)=>a+b,0);
-        else if (agg === 'max') v = Math.max(...arr);
-        else v = Math.min(...arr);
-        return [sf, v];
-      })
-    )
+    values:Object.fromEntries(C.spokeFields.map(sf=>{
+      const arr=fields[sf]||[0];
+      let v;
+      if(C.agg==='avg')v=arr.reduce((a,b)=>a+b,0)/arr.length;
+      else if(C.agg==='sum')v=arr.reduce((a,b)=>a+b,0);
+      else if(C.agg==='max')v=Math.max(...arr);
+      else v=Math.min(...arr);
+      return[sf,v];
+    }))
   }));
-
-  // Auto-assign colors if not set
-  chartData.forEach((s, i) => {
-    if (!CONFIG.seriesColors[s.label]) {
-      CONFIG.seriesColors[s.label] = PALETTES.tableau10[i % 10];
-    }
-  });
+  chartData.forEach((s,i)=>{if(!C.colors[s.label])C.colors[s.label]=PAL.tableau10[i%10];});
 }
 
-// ── Demo data ──────────────────────────────────────────────
-function loadDemoData() {
-  CONFIG.spokeFields  = ['Cultural','Education','Finance','Health','Retail'];
-  CONFIG.dimField     = 'Spatial Unit';
-  CONFIG.seriesColors = { Brisbane:'#4e79a7', Logan:'#b07aa1' };
-  chartData = [
-    { label:'Brisbane', values:{ Cultural:18, Education:16, Finance:12, Health:20, Retail:15 } },
-    { label:'Logan',    values:{ Cultural:32, Education:30, Finance:28, Health:40, Retail:35 } }
+// ── Demo data ─────────────────────────────────────────────────
+function loadDemo(){
+  C.spokeFields=['Cultural','Education','Finance','Health','Retail'];
+  C.dimField='Spatial Unit';
+  C.colors={Brisbane:'#4e79a7',Logan:'#b07aa1'};
+  chartData=[
+    {label:'Brisbane',values:{Cultural:18,Education:16,Finance:12,Health:20,Retail:15}},
+    {label:'Logan',   values:{Cultural:32,Education:30,Finance:28,Health:40,Retail:35}}
   ];
 }
 
-/* =========================================================
-   D3 RADAR CHART RENDER
-   ========================================================= */
-function buildChart() {
-  const wrap = document.getElementById('chart-wrap');
-  const W = wrap.clientWidth  || 800;
-  const H = wrap.clientHeight || 600;
+/* =============================================================
+   SVG RADAR CHART — PURE VANILLA JS
+   ============================================================= */
+const SVG_NS='http://www.w3.org/2000/svg';
+function el(tag,attrs={},parent){
+  const e=document.createElementNS(SVG_NS,tag);
+  Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+  if(parent)parent.appendChild(e);
+  return e;
+}
 
-  const bgColor = CONFIG.transparentBg ? 'transparent' : CONFIG.bgColor;
-  document.body.style.background = bgColor;
+function draw(){
+  const wrap=id('app');
+  const W=wrap.clientWidth||800, H=wrap.clientHeight||600;
+  const bg=C.tb?'transparent':C.bg;
+  document.body.style.background=bg;
 
-  const svg = d3.select('#radar-svg')
-    .attr('width', W).attr('height', H)
-    .style('background', bgColor);
+  // Clear SVG
+  while(svgEl.firstChild)svgEl.removeChild(svgEl.lastChild);
+  svgEl.setAttribute('width',W);svgEl.setAttribute('height',H);
+  svgEl.style.background=bg;
 
-  svg.selectAll('*').remove();
-
-  if (!chartData.length || !CONFIG.spokeFields.length) {
-    svg.append('text').attr('x', W/2).attr('y', H/2)
-      .attr('text-anchor','middle').attr('fill','#aaa').attr('font-size','13px')
-      .text('No data — configure fields via ⚙');
-    return;
+  if(!chartData.length||!C.spokeFields.length){
+    const t=el('text',{x:W/2,y:H/2,'text-anchor':'middle',fill:'#aaa','font-size':'13px'},svgEl);
+    t.textContent='No data — configure fields via ⚙';return;
   }
 
-  const margin   = CONFIG.margin;
-  const radius   = Math.min(W, H) / 2 - margin;
-  const cx       = W / 2;
-  const cy       = H / 2;
-  const spokes   = CONFIG.spokeFields;
-  const N        = spokes.length;
-  const rotRad   = (CONFIG.rotation * Math.PI) / 180;
+  const radius=Math.min(W,H)/2-C.mg;
+  const cx=W/2, cy=H/2;
+  const spokes=C.spokeFields, N=spokes.length;
+  const rotR=(C.rot*Math.PI)/180;
 
-  // Value scale
-  let maxVal = CONFIG.autoRange
-    ? d3.max(chartData, s => d3.max(spokes, sp => s.values[sp] || 0)) * 1.1
-    : CONFIG.maxValue;
-  if (!maxVal || maxVal <= 0) maxVal = 100;
+  // Max value
+  let maxV=C.ar
+    ? Math.max(...chartData.flatMap(s=>spokes.map(sp=>s.values[sp]||0)))*1.1
+    : C.mv;
+  if(!maxV||maxV<=0)maxV=100;
 
-  const rScale = d3.scaleLinear().domain([0, maxVal]).range([0, radius]);
+  function angle(i){return(i/N)*2*Math.PI-Math.PI/2+rotR;}
+  function pt(r,i){return{x:r*Math.cos(angle(i)),y:r*Math.sin(angle(i))};}
+  function scale(v){return(v/maxV)*radius;}
 
-  // Angle for spoke i
-  function spokeAngle(i) {
-    return (i / N) * 2 * Math.PI - Math.PI / 2 + rotRad;
-  }
+  const g=el('g',{transform:`translate(${cx},${cy})`},svgEl);
 
-  const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
-
-  // ── Grid ──────────────────────────────────────────────────
-  const levels = CONFIG.gridLevels;
-  const gridOp = CONFIG.gridOpacity / 100;
-  const dash   = CONFIG.gridDash === 'none' ? null : CONFIG.gridDash;
-
-  for (let lv = levels; lv >= 1; lv--) {
-    const r = (lv / levels) * radius;
-    if (CONFIG.gridType === 'circle') {
-      g.append('circle')
-        .attr('r', r).attr('fill','none')
-        .attr('stroke', CONFIG.gridColor)
-        .attr('stroke-opacity', gridOp)
-        .attr('stroke-dasharray', dash || null);
-    } else {
-      // Polygon
-      const pts = spokes.map((_, i) => {
-        const a = spokeAngle(i);
-        return `${r * Math.cos(a)},${r * Math.sin(a)}`;
-      }).join(' ');
-      g.append('polygon')
-        .attr('points', pts).attr('fill','none')
-        .attr('stroke', CONFIG.gridColor)
-        .attr('stroke-opacity', gridOp)
-        .attr('stroke-dasharray', dash || null);
+  // ── Grid lines ────────────────────────────────────────────
+  const gop=C.go/100;
+  const dash=C.gd==='0'?null:C.gd;
+  for(let lv=C.gl;lv>=1;lv--){
+    const r=(lv/C.gl)*radius;
+    if(C.gt==='circle'){
+      el('circle',{r,fill:'none',stroke:C.gc,'stroke-opacity':gop,
+        ...(dash?{'stroke-dasharray':dash}:{})},g);
+    }else{
+      const pts=spokes.map((_,i)=>{const p=pt(r,i);return`${p.x},${p.y}`;}).join(' ');
+      el('polygon',{points:pts,fill:'none',stroke:C.gc,'stroke-opacity':gop,
+        ...(dash?{'stroke-dasharray':dash}:{})},g);
     }
   }
 
-  // Grid tick labels
-  if (CONFIG.showTicks) {
-    const fmt = d3.format(`,.${CONFIG.tickDecimals}f`);
-    for (let lv = 1; lv <= levels; lv++) {
-      const val = (lv / levels) * maxVal;
-      const r   = (lv / levels) * radius;
-      g.append('text')
-        .attr('x', 4).attr('y', -r - 2)
-        .attr('font-size', CONFIG.tickFontSize + 'px')
-        .attr('fill', '#999').attr('text-anchor','start')
-        .text(fmt(val));
+  // Tick labels
+  if(C.st){
+    const fmt=v=>v.toFixed(C.td);
+    for(let lv=1;lv<=C.gl;lv++){
+      const val=(lv/C.gl)*maxV, r=(lv/C.gl)*radius;
+      const t=el('text',{x:4,y:-r-2,'font-size':C.tfs+'px',fill:'#999','text-anchor':'start'},g);
+      t.textContent=fmt(val);
     }
   }
 
-  // ── Spoke lines ────────────────────────────────────────────
-  if (CONFIG.showSpokes) {
-    spokes.forEach((_, i) => {
-      const a = spokeAngle(i);
-      g.append('line')
-        .attr('x1', 0).attr('y1', 0)
-        .attr('x2', radius * Math.cos(a)).attr('y2', radius * Math.sin(a))
-        .attr('stroke', CONFIG.spokeColor)
-        .attr('stroke-opacity', 0.7);
+  // ── Spoke lines ───────────────────────────────────────────
+  if(C.ss){
+    spokes.forEach((_,i)=>{
+      const p=pt(radius,i);
+      el('line',{x1:0,y1:0,x2:p.x,y2:p.y,stroke:C.sc,'stroke-opacity':.7},g);
     });
   }
 
-  // ── Curve type ────────────────────────────────────────────
-  function getCurve() {
-    switch (CONFIG.lineStyle) {
-      case 'cardinal': return d3.curveCardinalClosed.tension(0.4);
-      case 'basis':    return d3.curveBasisClosed;
-      case 'step':     return d3.curveLinearClosed; // step-like
-      default:         return d3.curveLinearClosed;
+  // ── Helper: smooth closed cardinal curve ──────────────────
+  function cardinalPath(pts, tension=0.4){
+    // Catmull-Rom / Cardinal closed spline
+    const n=pts.length;
+    let d='';
+    for(let i=0;i<n;i++){
+      const p0=pts[(i-1+n)%n], p1=pts[i], p2=pts[(i+1)%n], p3=pts[(i+2)%n];
+      const cp1x=p1.x+(p2.x-p0.x)*tension/2;
+      const cp1y=p1.y+(p2.y-p0.y)*tension/2;
+      const cp2x=p2.x-(p3.x-p1.x)*tension/2;
+      const cp2y=p2.y-(p3.y-p1.y)*tension/2;
+      if(i===0)d+=`M${p1.x},${p1.y}`;
+      d+=` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
     }
+    return d+'Z';
+  }
+
+  function linearPath(pts){
+    return 'M'+pts.map(p=>`${p.x},${p.y}`).join('L')+'Z';
+  }
+
+  function stepPath(pts){
+    const n=pts.length;
+    let d='';
+    for(let i=0;i<n;i++){
+      const a=pts[i], b=pts[(i+1)%n];
+      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      if(i===0)d+=`M${a.x},${a.y}`;
+      d+=` L${mx},${my} L${b.x},${b.y}`;
+    }
+    return d+'Z';
   }
 
   // ── Series ────────────────────────────────────────────────
-  const fillOp = CONFIG.fillOpacity / 100;
+  const fillOp=C.fo/100;
 
-  chartData.forEach(series => {
-    const color = CONFIG.seriesColors[series.label] || '#4e79a7';
+  chartData.forEach(series=>{
+    const color=C.colors[series.label]||'#4e79a7';
+    const pts=spokes.map((sp,i)=>{const r=scale(series.values[sp]||0);return pt(r,i);});
 
-    const pts = spokes.map((sp, i) => {
-      const a = spokeAngle(i);
-      const r = rScale(series.values[sp] || 0);
-      return [r * Math.cos(a), r * Math.sin(a)];
-    });
+    let pathD;
+    if(C.lineStyle==='cardinal')pathD=cardinalPath(pts);
+    else if(C.lineStyle==='step')pathD=stepPath(pts);
+    else pathD=linearPath(pts);
 
-    // Build closed path using chosen curve
-    const lineGen = d3.line().curve(getCurve());
-    const pathD   = lineGen(pts);
+    // Animated fill
+    const path=el('path',{
+      d:pathD,fill:color,'fill-opacity':0,
+      stroke:color,'stroke-width':C.sw,'stroke-opacity':0,
+      'stroke-linejoin':'round'
+    },g);
 
-    // Fill
-    const path = g.append('path')
-      .attr('d', pathD)
-      .attr('fill', color)
-      .attr('fill-opacity', 0)
-      .attr('stroke', color)
-      .attr('stroke-width', CONFIG.strokeWidth)
-      .attr('stroke-opacity', 0);
-
-    if (CONFIG.animate) {
-      path.transition().duration(700).ease(d3.easeCubicOut)
-        .attr('fill-opacity', fillOp)
-        .attr('stroke-opacity', 0.9);
-    } else {
-      path.attr('fill-opacity', fillOp).attr('stroke-opacity', 0.9);
+    if(C.an){
+      // CSS animation via style
+      path.style.transition='fill-opacity .7s ease, stroke-opacity .7s ease';
+      requestAnimationFrame(()=>{
+        path.setAttribute('fill-opacity',fillOp);
+        path.setAttribute('stroke-opacity',.9);
+      });
+    }else{
+      path.setAttribute('fill-opacity',fillOp);
+      path.setAttribute('stroke-opacity',.9);
     }
 
-    // Markers & tooltip
-    if (CONFIG.markerShape !== 'none' && CONFIG.markerSize > 0) {
-      spokes.forEach((sp, i) => {
-        const a = spokeAngle(i);
-        const r = rScale(series.values[sp] || 0);
-        const mx = r * Math.cos(a), my = r * Math.sin(a);
-        const ms = CONFIG.markerSize;
-        let marker;
-
-        if (CONFIG.markerShape === 'square') {
-          marker = g.append('rect')
-            .attr('x', mx - ms/2).attr('y', my - ms/2)
-            .attr('width', ms).attr('height', ms);
-        } else if (CONFIG.markerShape === 'diamond') {
-          marker = g.append('polygon')
-            .attr('points', `${mx},${my-ms} ${mx+ms},${my} ${mx},${my+ms} ${mx-ms},${my}`);
-        } else {
-          marker = g.append('circle').attr('cx', mx).attr('cy', my).attr('r', ms/2);
+    // Markers
+    if(C.ms!=='none'&&C.mz>0){
+      spokes.forEach((sp,i)=>{
+        const r=scale(series.values[sp]||0);
+        const{x,y}=pt(r,i);
+        const sz=C.mz;
+        let m;
+        if(C.ms==='square'){
+          m=el('rect',{x:x-sz/2,y:y-sz/2,width:sz,height:sz,
+            fill:color,stroke:'#fff','stroke-width':1},g);
+        }else if(C.ms==='diamond'){
+          m=el('polygon',{
+            points:`${x},${y-sz} ${x+sz},${y} ${x},${y+sz} ${x-sz},${y}`,
+            fill:color,stroke:'#fff','stroke-width':1},g);
+        }else{
+          m=el('circle',{cx:x,cy:y,r:sz/2,fill:color,stroke:'#fff','stroke-width':1},g);
         }
+        m.style.cursor='pointer';
 
-        marker.attr('fill', color).attr('stroke', '#fff').attr('stroke-width', 1)
-          .style('cursor', 'pointer');
-
-        if (CONFIG.showTooltip) {
-          marker.on('mousemove', (evt) => {
-            const fmt = d3.format(`,.${CONFIG.ttDecimals}f`);
-            tooltip.innerHTML = `<strong>${series.label}</strong><br/>${sp}: ${fmt(series.values[sp]||0)}`;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (evt.clientX + 12) + 'px';
-            tooltip.style.top  = (evt.clientY - 28) + 'px';
-          }).on('mouseleave', () => { tooltip.style.display = 'none'; });
+        if(C.tt){
+          m.addEventListener('mousemove',evt=>{
+            const v=(series.values[sp]||0).toFixed(C.ttd);
+            ttEl.innerHTML=`<strong>${series.label}</strong><br/>${sp}: ${v}`;
+            ttEl.style.display='block';
+            ttEl.style.left=(evt.clientX+14)+'px';
+            ttEl.style.top=(evt.clientY-32)+'px';
+          });
+          m.addEventListener('mouseleave',()=>ttEl.style.display='none');
         }
       });
     }
   });
 
   // ── Spoke labels ──────────────────────────────────────────
-  if (CONFIG.showSpokeLabels) {
-    const pad = CONFIG.spokeLabelPad;
-    spokes.forEach((sp, i) => {
-      const a = spokeAngle(i);
-      const lx = (radius + pad) * Math.cos(a);
-      const ly = (radius + pad) * Math.sin(a);
-
-      let anchor = 'middle';
-      if (Math.cos(a) > 0.1) anchor = 'start';
-      else if (Math.cos(a) < -0.1) anchor = 'end';
-
-      g.append('text')
-        .attr('x', lx).attr('y', ly)
-        .attr('text-anchor', anchor)
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', CONFIG.spokeFontSize + 'px')
-        .attr('font-weight', CONFIG.spokeFontWeight)
-        .attr('fill', CONFIG.spokeFontColor)
-        .text(sp);
+  if(C.sl){
+    spokes.forEach((sp,i)=>{
+      const a=angle(i);
+      const lx=(radius+C.slp)*Math.cos(a);
+      const ly=(radius+C.slp)*Math.sin(a);
+      let anchor='middle';
+      if(Math.cos(a)>0.15)anchor='start';
+      else if(Math.cos(a)<-0.15)anchor='end';
+      const t=el('text',{
+        x:lx,y:ly,'text-anchor':anchor,
+        'dominant-baseline':'middle',
+        'font-size':C.sfs+'px','font-weight':C.sfw,fill:C.sfc
+      },g);
+      t.textContent=sp;
     });
   }
 
   // ── Legend ────────────────────────────────────────────────
-  if (CONFIG.showLegend && chartData.length > 0) {
-    const lfs  = CONFIG.legendFontSize;
-    const lPos = CONFIG.legendPos;
-    const lW   = 130, lH = chartData.length * (lfs + 6) + 16;
-    const pad2 = 14;
-    let lx = (lPos.includes('right')) ? W - lW - pad2 : pad2;
-    let ly = (lPos.includes('bottom')) ? H - lH - pad2 : pad2;
-    // Convert to g-relative (g is at cx,cy)
-    lx -= cx; ly -= cy;
+  if(C.lg&&chartData.length){
+    const lfs=C.lfs, pad=12;
+    const lW=140, lH=chartData.length*(lfs+7)+16;
+    let lx,ly;
+    if(C.lp==='tr'){lx=W/2-cx+cx-lW-pad;ly=-cy+pad;}
+    else if(C.lp==='tl'){lx=-cx+pad;ly=-cy+pad;}
+    else if(C.lp==='br'){lx=W/2-cx+cx-lW-pad;ly=cy-lH-pad;}
+    else{lx=-cx+pad;ly=cy-lH-pad;}
 
-    const lgG = g.append('g').attr('transform', `translate(${lx},${ly})`);
-    lgG.append('rect')
-      .attr('width', lW).attr('height', lH).attr('rx', 4)
-      .attr('fill','rgba(255,255,255,0.88)').attr('stroke','#e0e0e0');
-
-    chartData.forEach((s, i) => {
-      const color = CONFIG.seriesColors[s.label] || '#4e79a7';
-      const ry = 10 + i * (lfs + 6);
-      lgG.append('rect')
-        .attr('x', 8).attr('y', ry - lfs/2 + 1)
-        .attr('width', lfs).attr('height', lfs)
-        .attr('fill', color).attr('rx', 2);
-      lgG.append('text')
-        .attr('x', 8 + lfs + 6).attr('y', ry + 1)
-        .attr('dominant-baseline','middle')
-        .attr('font-size', lfs + 'px')
-        .attr('fill','#333')
-        .text(s.label);
+    const lg=el('g',{transform:`translate(${lx},${ly})`},g);
+    el('rect',{width:lW,height:lH,rx:4,fill:'rgba(255,255,255,.88)',stroke:'#e0e0e0'},lg);
+    chartData.forEach((s,i)=>{
+      const color=C.colors[s.label]||PAL.tableau10[i%10];
+      const ry=10+i*(lfs+7);
+      el('rect',{x:8,y:ry-lfs/2+1,width:lfs,height:lfs,fill:color,rx:2},lg);
+      const t=el('text',{x:8+lfs+6,y:ry+1,'dominant-baseline':'middle',
+        'font-size':lfs+'px',fill:'#333'},lg);
+      t.textContent=s.label;
     });
   }
 
-  // Update color list in format panel
   buildColorList();
 }
 
-// ── Color list ─────────────────────────────────────────────
-function buildColorList() {
-  colorList.innerHTML = '';
-  chartData.forEach(s => {
-    const entry = document.createElement('div');
-    entry.className = 'color-entry';
-    const ci = document.createElement('input');
-    ci.type = 'color';
-    ci.value = CONFIG.seriesColors[s.label] || '#4e79a7';
-    ci.dataset.label = s.label;
-    ci.addEventListener('change', () => {
-      CONFIG.seriesColors[s.label] = ci.value;
-      buildChart();
-    });
-    const lbl = document.createElement('span');
-    lbl.textContent = s.label;
-    entry.appendChild(ci); entry.appendChild(lbl);
-    colorList.appendChild(entry);
+// ── Color list ──────────────────────────────────────────────
+function buildColorList(){
+  const cl=id('color-list');cl.innerHTML='';
+  chartData.forEach(s=>{
+    const entry=document.createElement('div');entry.className='ce';
+    const ci=document.createElement('input');ci.type='color';
+    ci.value=C.colors[s.label]||'#4e79a7';ci.dataset.l=s.label;
+    ci.addEventListener('change',()=>{C.colors[s.label]=ci.value;draw();});
+    const lbl=document.createElement('span');lbl.textContent=s.label;
+    entry.appendChild(ci);entry.appendChild(lbl);cl.appendChild(entry);
   });
 }
 
-/* =========================================================
+/* =============================================================
    FORMAT PANEL WIRING
-   ========================================================= */
-
+   ============================================================= */
 // Tab switching
-document.querySelectorAll('.fp-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.fp-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.fp-page').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.querySelector(`.fp-page[data-page="${tab.dataset.tab}"]`).classList.add('active');
+document.querySelectorAll('.fp-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.fp-tab').forEach(t=>t.classList.remove('on'));
+    document.querySelectorAll('.fp-page').forEach(p=>p.classList.remove('on'));
+    tab.classList.add('on');
+    document.querySelector(`.fp-page[data-p="${tab.dataset.t}"]`).classList.add('on');
   });
 });
 
-// Toggle panel
-settingsBtn.addEventListener('click', () => {
-  formatPanel.classList.toggle('open');
-  syncPanelFromConfig();
+// Panel open/close
+id('settings-btn').addEventListener('click',()=>{fp.classList.toggle('open');syncPanel();});
+id('fp-x').addEventListener('click',()=>fp.classList.remove('open'));
+
+// Slider wiring
+function wireS(eid,unit,fn){
+  const e=id(eid),v=id(eid+'-v');
+  e.addEventListener('input',()=>{if(v)v.textContent=e.value+(unit||'');fn&&fn(+e.value);});
+}
+wireS('c-sw','',v=>C.sw=v);wireS('c-fo','',v=>C.fo=v);
+wireS('c-mz','',v=>C.mz=v);wireS('c-rot','°',v=>C.rot=v);
+wireS('c-mg','',v=>C.mg=v);wireS('c-gl','',v=>C.gl=v);
+wireS('c-go','',v=>C.go=v);wireS('c-sfs','',v=>C.sfs=v);
+wireS('c-slp','',v=>C.slp=v);wireS('c-tfs','',v=>C.tfs=v);
+wireS('c-lfs','',v=>C.lfs=v);
+
+id('c-ar').addEventListener('change',e=>{
+  id('row-mv').style.display=e.target.checked?'none':'flex';
 });
-fpClose.addEventListener('click', () => formatPanel.classList.remove('open'));
 
 // Palette presets
-document.querySelectorAll('.palette-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const pal = PALETTES[btn.dataset.palette] || PALETTES.tableau10;
-    chartData.forEach((s, i) => {
-      CONFIG.seriesColors[s.label] = pal[i % pal.length];
-    });
-    buildChart();
-    buildColorList();
+document.querySelectorAll('.pal-btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const pal=PAL[b.dataset.pal]||PAL.tableau10;
+    chartData.forEach((s,i)=>C.colors[s.label]=pal[i%pal.length]);
+    draw();
   });
-});
-
-// Slider live values
-function wireSlider(id, suffix, fn) {
-  const el = document.getElementById(id);
-  const vl = document.getElementById(id + '-val');
-  el.addEventListener('input', () => {
-    vl.textContent = el.value + (suffix||'');
-    fn && fn(parseFloat(el.value));
-  });
-}
-wireSlider('cfg-strokeWidth', '',  v => CONFIG.strokeWidth  = v);
-wireSlider('cfg-fillOpacity', '',  v => CONFIG.fillOpacity  = v);
-wireSlider('cfg-markerSize',  '',  v => CONFIG.markerSize   = v);
-wireSlider('cfg-rotation',    '°', v => CONFIG.rotation     = v);
-wireSlider('cfg-margin',      '',  v => CONFIG.margin       = v);
-wireSlider('cfg-gridLevels',  '',  v => CONFIG.gridLevels   = v);
-wireSlider('cfg-gridOpacity', '',  v => CONFIG.gridOpacity  = v);
-wireSlider('cfg-spokeFontSize', '', v => CONFIG.spokeFontSize = v);
-wireSlider('cfg-spokeLabelPad', '', v => CONFIG.spokeLabelPad = v);
-wireSlider('cfg-tickFontSize',  '', v => CONFIG.tickFontSize  = v);
-wireSlider('cfg-legendFontSize','', v => CONFIG.legendFontSize= v);
-
-// Sync panel inputs from current CONFIG
-function syncPanelFromConfig() {
-  function set(id, val) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (el.type === 'checkbox') el.checked = !!val;
-    else el.value = val;
-  }
-  function setSlider(id, val, suffix='') {
-    set(id, val);
-    const vl = document.getElementById(id+'-val');
-    if (vl) vl.textContent = val + suffix;
-  }
-
-  set('cfg-lineStyle', CONFIG.lineStyle);
-  setSlider('cfg-strokeWidth', CONFIG.strokeWidth);
-  setSlider('cfg-fillOpacity', CONFIG.fillOpacity);
-  set('cfg-autoRange', CONFIG.autoRange);
-  set('cfg-maxValue', CONFIG.maxValue);
-  set('cfg-markerShape', CONFIG.markerShape);
-  setSlider('cfg-markerSize', CONFIG.markerSize);
-  setSlider('cfg-rotation', CONFIG.rotation, '°');
-  setSlider('cfg-margin', CONFIG.margin);
-  set('cfg-gridType', CONFIG.gridType);
-  setSlider('cfg-gridLevels', CONFIG.gridLevels);
-  set('cfg-gridDash', CONFIG.gridDash);
-  set('cfg-gridColor', CONFIG.gridColor);
-  setSlider('cfg-gridOpacity', CONFIG.gridOpacity);
-  set('cfg-showSpokes', CONFIG.showSpokes);
-  set('cfg-spokeColor', CONFIG.spokeColor);
-  set('cfg-showSpokeLabels', CONFIG.showSpokeLabels);
-  setSlider('cfg-spokeFontSize', CONFIG.spokeFontSize);
-  set('cfg-spokeFontWeight', CONFIG.spokeFontWeight);
-  set('cfg-spokeFontColor', CONFIG.spokeFontColor);
-  setSlider('cfg-spokeLabelPad', CONFIG.spokeLabelPad);
-  set('cfg-showTicks', CONFIG.showTicks);
-  setSlider('cfg-tickFontSize', CONFIG.tickFontSize);
-  set('cfg-tickDecimals', CONFIG.tickDecimals);
-  set('cfg-showLegend', CONFIG.showLegend);
-  set('cfg-legendPos', CONFIG.legendPos);
-  setSlider('cfg-legendFontSize', CONFIG.legendFontSize);
-  set('cfg-aggFn', CONFIG.aggFn);
-  set('cfg-showTooltip', CONFIG.showTooltip);
-  set('cfg-ttDecimals', CONFIG.ttDecimals);
-  set('cfg-bgColor', CONFIG.bgColor);
-  set('cfg-transparentBg', CONFIG.transparentBg);
-  set('cfg-fitWidth', CONFIG.fitWidth);
-  set('cfg-fitHeight', CONFIG.fitHeight);
-  set('cfg-animate', CONFIG.animate);
-
-  buildColorList();
-
-  // Toggle maxValue row
-  document.getElementById('row-maxValue').style.display =
-    CONFIG.autoRange ? 'none' : 'flex';
-}
-
-document.getElementById('cfg-autoRange').addEventListener('change', e => {
-  document.getElementById('row-maxValue').style.display = e.target.checked ? 'none' : 'flex';
 });
 
 // Apply button
-document.getElementById('apply-btn').addEventListener('click', () => {
-  function get(id) {
-    const el = document.getElementById(id);
-    if (!el) return undefined;
-    return el.type === 'checkbox' ? el.checked : el.value;
-  }
-  function getNum(id) { return parseFloat(get(id)); }
-
-  CONFIG.lineStyle       = get('cfg-lineStyle');
-  CONFIG.strokeWidth     = getNum('cfg-strokeWidth');
-  CONFIG.fillOpacity     = getNum('cfg-fillOpacity');
-  CONFIG.autoRange       = get('cfg-autoRange');
-  CONFIG.maxValue        = getNum('cfg-maxValue');
-  CONFIG.markerShape     = get('cfg-markerShape');
-  CONFIG.markerSize      = getNum('cfg-markerSize');
-  CONFIG.rotation        = getNum('cfg-rotation');
-  CONFIG.margin          = getNum('cfg-margin');
-  CONFIG.gridType        = get('cfg-gridType');
-  CONFIG.gridLevels      = getNum('cfg-gridLevels');
-  CONFIG.gridDash        = get('cfg-gridDash');
-  CONFIG.gridColor       = get('cfg-gridColor');
-  CONFIG.gridOpacity     = getNum('cfg-gridOpacity');
-  CONFIG.showSpokes      = get('cfg-showSpokes');
-  CONFIG.spokeColor      = get('cfg-spokeColor');
-  CONFIG.showSpokeLabels = get('cfg-showSpokeLabels');
-  CONFIG.spokeFontSize   = getNum('cfg-spokeFontSize');
-  CONFIG.spokeFontWeight = get('cfg-spokeFontWeight');
-  CONFIG.spokeFontColor  = get('cfg-spokeFontColor');
-  CONFIG.spokeLabelPad   = getNum('cfg-spokeLabelPad');
-  CONFIG.showTicks       = get('cfg-showTicks');
-  CONFIG.tickFontSize    = getNum('cfg-tickFontSize');
-  CONFIG.tickDecimals    = parseInt(get('cfg-tickDecimals'));
-  CONFIG.showLegend      = get('cfg-showLegend');
-  CONFIG.legendPos       = get('cfg-legendPos');
-  CONFIG.legendFontSize  = getNum('cfg-legendFontSize');
-  CONFIG.aggFn           = get('cfg-aggFn');
-  CONFIG.showTooltip     = get('cfg-showTooltip');
-  CONFIG.ttDecimals      = parseInt(get('cfg-ttDecimals'));
-  CONFIG.bgColor         = get('cfg-bgColor');
-  CONFIG.transparentBg   = get('cfg-transparentBg');
-  CONFIG.fitWidth        = get('cfg-fitWidth');
-  CONFIG.fitHeight       = get('cfg-fitHeight');
-  CONFIG.animate         = get('cfg-animate');
-
-  buildChartData();
-  buildChart();
-  saveConfigToSettings();
+id('apply-btn').addEventListener('click',()=>{
+  function g(i){const e=id(i);if(!e)return;return e.type==='checkbox'?e.checked:e.value;}
+  function n(i){return parseFloat(g(i));}
+  C.lineStyle=g('c-lineStyle');C.sw=n('c-sw');C.fo=n('c-fo');
+  C.ar=g('c-ar');C.mv=n('c-mv');
+  C.ms=g('c-ms');C.mz=n('c-mz');
+  C.rot=n('c-rot');C.mg=n('c-mg');
+  C.gt=g('c-gt');C.gl=n('c-gl');C.gd=g('c-gd');
+  C.gc=g('c-gc');C.go=n('c-go');
+  C.ss=g('c-ss');C.sc=g('c-sc');
+  C.sl=g('c-sl');C.sfs=n('c-sfs');C.sfw=g('c-sfw');C.sfc=g('c-sfc');C.slp=n('c-slp');
+  C.st=g('c-st');C.tfs=n('c-tfs');C.td=parseInt(g('c-td'));
+  C.lg=g('c-lg');C.lp=g('c-lp');C.lfs=n('c-lfs');
+  C.agg=g('c-agg');C.tt=g('c-tt');C.ttd=parseInt(g('c-ttd'));
+  C.tb=g('c-tb');C.bg=g('c-bg');C.an=g('c-an');
+  buildChartData();draw();saveCfg();
 });
 
-// ── Resize handler ─────────────────────────────────────────
-let resizeTimer;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(buildChart, 150);
-});
+// Sync panel from config
+function syncPanel(){
+  function s(i,v){const e=id(i);if(!e)return;e.type==='checkbox'?e.checked=!!v:e.value=v;}
+  function ss(i,v,u=''){s(i,v);const vl=id(i+'-v');if(vl)vl.textContent=v+(u);}
+  s('c-lineStyle',C.lineStyle);ss('c-sw',C.sw);ss('c-fo',C.fo);
+  s('c-ar',C.ar);s('c-mv',C.mv);id('row-mv').style.display=C.ar?'none':'flex';
+  s('c-ms',C.ms);ss('c-mz',C.mz);ss('c-rot',C.rot,'°');ss('c-mg',C.mg);
+  s('c-gt',C.gt);ss('c-gl',C.gl);s('c-gd',C.gd);
+  s('c-gc',C.gc);ss('c-go',C.go);s('c-ss',C.ss);s('c-sc',C.sc);
+  s('c-sl',C.sl);ss('c-sfs',C.sfs);s('c-sfw',C.sfw);s('c-sfc',C.sfc);ss('c-slp',C.slp);
+  s('c-st',C.st);ss('c-tfs',C.tfs);s('c-td',C.td);
+  s('c-lg',C.lg);s('c-lp',C.lp);ss('c-lfs',C.lfs);
+  s('c-agg',C.agg);s('c-tt',C.tt);s('c-ttd',C.ttd);
+  s('c-tb',C.tb);s('c-bg',C.bg);s('c-an',C.an);
+  buildColorList();
+}
 
-// Initial sync
-syncPanelFromConfig();
+// Resize
+let rt;
+window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,150);});
+
+syncPanel();
 </script>
 </body>
 </html>
