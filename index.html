@@ -183,21 +183,55 @@ hr.div{border:none;border-top:1px solid #eee;margin:18px 0}
 <!-- ── Field config modal ── -->
 <div id="dc" class="hidden">
   <h2>Configure Fields</h2>
-  <p class="dcsub">Choose which field is your <b>color/group dimension</b>
-    and which fields become <b>spokes</b> on the radar.</p>
 
-  <div class="dcr">
-    <label>Color / Group dimension</label>
-    <select id="dc-dim"></select>
+  <!-- Mode toggle -->
+  <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid #1a73e8;border-radius:6px;overflow:hidden;width:100%;max-width:420px">
+    <button id="mode-wide" onclick="setMode('wide')"
+      style="flex:1;padding:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+             background:#1a73e8;color:#fff;transition:all .15s">
+      Wide format<br/><span style="font-weight:400;font-size:10px">One column per spoke</span>
+    </button>
+    <button id="mode-long" onclick="setMode('long')"
+      style="flex:1;padding:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;
+             background:#fff;color:#1a73e8;transition:all .15s">
+      Long format<br/><span style="font-weight:400;font-size:10px">Category + Value columns</span>
+    </button>
   </div>
 
-  <div class="dc-list-wrap">
-    <label>Spokes — tick the measure fields</label>
-    <div id="dc-spokes"></div>
+  <!-- WIDE mode fields -->
+  <div id="dc-wide-fields">
+    <p class="dcsub">Each <b>checked column</b> becomes one spoke on the radar.</p>
+    <div class="dcr">
+      <label>Color / Group dimension</label>
+      <select id="dc-dim"></select>
+    </div>
+    <div class="dc-list-wrap">
+      <label>Spokes — tick the measure columns</label>
+      <div id="dc-spokes"></div>
+    </div>
   </div>
 
-  <p class="dc-hint">Tip: numeric/measure fields make the best spokes.
-    String/dimension fields work best as the group.</p>
+  <!-- LONG mode fields -->
+  <div id="dc-long-fields" style="display:none">
+    <p class="dcsub">Your data has one row per category. Pick which column holds
+      the <b>category names</b> (spokes), which holds the <b>values</b>, and which
+      is the <b>group/series</b>.</p>
+    <div class="dcr" style="margin-bottom:10px">
+      <label>Category field <span style="color:#888;font-weight:400">(spoke names)</span></label>
+      <select id="dc-cat"></select>
+    </div>
+    <div class="dcr" style="margin-bottom:10px">
+      <label>Value field <span style="color:#888;font-weight:400">(numeric)</span></label>
+      <select id="dc-val"></select>
+    </div>
+    <div class="dcr" style="margin-bottom:10px">
+      <label>Group / Series <span style="color:#888;font-weight:400">(color)</span></label>
+      <select id="dc-grp"></select>
+    </div>
+  </div>
+
+  <p class="dc-hint" id="dc-hint-wide">Tip: numeric columns make the best spokes. String fields work best as the group.</p>
+  <p class="dc-hint" id="dc-hint-long" style="display:none">Example: Parameter=category, Spatial unit=group, AVG(...)=value.</p>
 
   <div class="dc-btns">
     <button id="dc-ok">Apply &amp; Draw Chart</button>
@@ -426,7 +460,10 @@ let C={
   lg:true,lp:'tr',lfs:11,
   agg:'avg',tt:true,ttd:1,
   tb:true,bg:'#ffffff',an:true,
-  colors:{},dimField:null,spokeFields:[]
+  colors:{},dimField:null,spokeFields:[],
+  dataMode:'wide',      // 'wide' = one column per spoke | 'long' = category+value columns
+  categoryField:null,   // long mode: field whose VALUES become spokes (e.g. Parameter)
+  valueField:null       // long mode: the numeric measure field (e.g. AVG(...))
 };
 
 // ── State ───────────────────────────────────────────────
@@ -620,31 +657,65 @@ $('guide-demo').addEventListener('click',()=>{
   loadDemo();draw();guide.classList.add('hidden');
 });
 
-// ── Auto-detect fields ──────────────────────────────────
+// ── Auto-detect fields ─────────────────────────────────
 function autoDetect(){
   const NUM=['float','integer','real','number','double'];
   const isNum=c=>NUM.some(t=>c.type.includes(t));
-  C.spokeFields=colDefs.filter(isNum).map(c=>c.name);
-  const dims=colDefs.filter(c=>!isNum(c));
-  C.dimField=dims.length?dims[0].name:null;
+  const numCols=colDefs.filter(isNum);
+  const dimCols=colDefs.filter(c=>!isNum(c));
+
+  // Heuristic: if there's only 1 numeric column + 2 dim columns → long format
+  if(numCols.length===1 && dimCols.length>=2){
+    C.dataMode='long';
+    // Guess: larger-cardinality dim = category (spokes), smaller = group (series)
+    // Default: first dim = category, second dim = group
+    C.categoryField=dimCols[0].name;
+    C.dimField=dimCols[1]?dimCols[1].name:null;
+    C.valueField=numCols[0].name;
+    C.spokeFields=[];
+  } else {
+    C.dataMode='wide';
+    C.spokeFields=numCols.map(c=>c.name);
+    C.dimField=dimCols.length?dimCols[0].name:null;
+  }
+}
+
+// ── Mode toggle ─────────────────────────────────────────
+function setMode(mode){
+  C.dataMode=mode;
+  $('dc-wide-fields').style.display=mode==='wide'?'block':'none';
+  $('dc-long-fields').style.display=mode==='long'?'block':'none';
+  $('dc-hint-wide').style.display=mode==='wide'?'block':'none';
+  $('dc-hint-long').style.display=mode==='long'?'block':'none';
+  $('mode-wide').style.background=mode==='wide'?'#1a73e8':'#fff';
+  $('mode-wide').style.color=mode==='wide'?'#fff':'#1a73e8';
+  $('mode-long').style.background=mode==='long'?'#1a73e8':'#fff';
+  $('mode-long').style.color=mode==='long'?'#fff':'#1a73e8';
 }
 
 // ── Field config modal ──────────────────────────────────
-function openDC(){
-  dcDim.innerHTML='<option value="">— None (single series) —</option>';
+function fillSelect(selId, selectedVal, includeNone=false){
+  const sel=$( selId);
+  sel.innerHTML=includeNone?'<option value="">— None —</option>':'';
   colDefs.forEach(c=>{
     const o=document.createElement('option');
-    o.value=c.name;o.textContent=c.name+(c.type?` (${c.type})`:'');
-    if(c.name===C.dimField)o.selected=true;
-    dcDim.appendChild(o);
+    o.value=c.name;
+    o.textContent=c.name+(c.type?` (${c.type})`:'');
+    if(c.name===selectedVal)o.selected=true;
+    sel.appendChild(o);
   });
+}
+
+function openDC(){
+  setMode(C.dataMode||'wide');
+
+  // Wide mode dropdowns
+  fillSelect('dc-dim', C.dimField, true);
   dcSpk.innerHTML='';
   colDefs.forEach(c=>{
-    const row=document.createElement('div');
-    row.className='dcs-row';
+    const row=document.createElement('div');row.className='dcs-row';
     row.onclick=()=>cb.click();
-    const cb=document.createElement('input');
-    cb.type='checkbox';cb.value=c.name;
+    const cb=document.createElement('input');cb.type='checkbox';cb.value=c.name;
     cb.onclick=e=>e.stopPropagation();
     if(C.spokeFields.includes(c.name))cb.checked=true;
     const nm=document.createElement('span');nm.className='fname';nm.textContent=c.name;
@@ -652,13 +723,29 @@ function openDC(){
     row.appendChild(cb);row.appendChild(nm);row.appendChild(dt);
     dcSpk.appendChild(row);
   });
+
+  // Long mode dropdowns
+  fillSelect('dc-cat', C.categoryField);
+  fillSelect('dc-val', C.valueField);
+  fillSelect('dc-grp', C.dimField, true);
+
   dc.classList.remove('hidden');
 }
 
 $('dc-ok').addEventListener('click',()=>{
-  C.dimField=dcDim.value||null;
-  C.spokeFields=[...dcSpk.querySelectorAll('input:checked')].map(c=>c.value);
-  if(!C.spokeFields.length){alert('Please select at least one spoke field.');return;}
+  if(C.dataMode==='long'){
+    C.categoryField=$('dc-cat').value||null;
+    C.valueField=$('dc-val').value||null;
+    C.dimField=$('dc-grp').value||null;
+    C.spokeFields=[];
+    if(!C.categoryField||!C.valueField){
+      alert('Please select both a Category field and a Value field.');return;
+    }
+  } else {
+    C.dimField=$('dc-dim').value||null;
+    C.spokeFields=[...dcSpk.querySelectorAll('input:checked')].map(c=>c.value);
+    if(!C.spokeFields.length){alert('Please select at least one spoke field.');return;}
+  }
   saveCfg();dc.classList.add('hidden');
   buildChartData();draw();updateInfo();
 });
@@ -678,37 +765,89 @@ $('reload-btn').addEventListener('click',async function(){
 });
 
 function updateInfo(){
-  $('info-dim').textContent=C.dimField||'(none)';
-  $('info-spokes').textContent=C.spokeFields.join(', ')||'(none)';
+  if(C.dataMode==='long'){
+    $('info-dim').textContent=(C.dimField||'(none)')+' [series]';
+    $('info-spokes').textContent=
+      'Category: '+(C.categoryField||'?')+
+      ' | Value: '+(C.valueField||'?')+
+      ' | '+C.spokeFields.length+' spokes detected';
+  } else {
+    $('info-dim').textContent=C.dimField||'(none)';
+    $('info-spokes').textContent=C.spokeFields.join(', ')||'(none)';
+  }
 }
 
-// ── Build chart data ────────────────────────────────────
-function buildChartData(){
+// ── Raw value helper ────────────────────────────────────
+function rv(cell){return cell!=null&&cell.value!==undefined?cell.value:cell;}
+function agg(arr){
+  if(!arr||!arr.length)return 0;
+  if(C.agg==='sum')return arr.reduce((a,b)=>a+b,0);
+  if(C.agg==='max')return Math.max(...arr);
+  if(C.agg==='min')return Math.min(...arr);
+  return arr.reduce((a,b)=>a+b,0)/arr.length; // avg default
+}
+
+// ── Build chart data — WIDE format ──────────────────────
+// Each column is a spoke. Rows are grouped by dimField.
+function buildChartDataWide(){
   if(!rawData.length||!C.spokeFields.length)return;
   const groups={};
   rawData.forEach(row=>{
-    const rv=C.dimField?row[C.dimField]:null;
-    const key=rv!=null?String(rv?.value!==undefined?rv.value:rv):'Series';
+    const key=C.dimField?String(rv(row[C.dimField])||'Series'):'Series';
     if(!groups[key])groups[key]={};
     C.spokeFields.forEach(sf=>{
       if(!groups[key][sf])groups[key][sf]=[];
-      const v2=row[sf];
-      const v=v2?.value!==undefined?v2.value:v2;
-      const n=parseFloat(v);
+      const n=parseFloat(rv(row[sf]));
       if(!isNaN(n))groups[key][sf].push(n);
     });
   });
   chartData=Object.entries(groups).map(([label,flds])=>({
     label,
-    values:Object.fromEntries(C.spokeFields.map(sf=>{
-      const arr=flds[sf]||[0];let v;
-      if(C.agg==='avg')v=arr.reduce((a,b)=>a+b,0)/arr.length;
-      else if(C.agg==='sum')v=arr.reduce((a,b)=>a+b,0);
-      else if(C.agg==='max')v=Math.max(...arr);
-      else v=Math.min(...arr);
-      return[sf,v];
-    }))
+    values:Object.fromEntries(C.spokeFields.map(sf=>[sf,agg(flds[sf]||[0])]))
   }));
+}
+
+// ── Build chart data — LONG format ──────────────────────
+// Rows like: {Parameter:'Cultural', 'Spatial unit':'Brisbane', 'AVG(...)':12.5}
+// categoryField = 'Parameter'   → becomes spoke names
+// valueField    = 'AVG(...)'    → numeric value for each spoke
+// dimField      = 'Spatial unit' → series/color grouping
+function buildChartDataLong(){
+  if(!rawData.length||!C.categoryField||!C.valueField)return;
+
+  // Collect all unique spoke names (category values), preserving order
+  const spokeSet=[];
+  rawData.forEach(row=>{
+    const cat=String(rv(row[C.categoryField])||'');
+    if(cat&&!spokeSet.includes(cat))spokeSet.push(cat);
+  });
+
+  // Group rows by series (dimField)
+  const groups={};
+  rawData.forEach(row=>{
+    const series=C.dimField?String(rv(row[C.dimField])||'Series'):'Series';
+    const cat=String(rv(row[C.categoryField])||'');
+    const n=parseFloat(rv(row[C.valueField]));
+    if(!cat||isNaN(n))return;
+    if(!groups[series])groups[series]={};
+    if(!groups[series][cat])groups[series][cat]=[];
+    groups[series][cat].push(n);
+  });
+
+  chartData=Object.entries(groups).map(([label,cats])=>({
+    label,
+    values:Object.fromEntries(spokeSet.map(sp=>[sp,agg(cats[sp]||[0])]))
+  }));
+
+  // Store derived spoke list so the renderer knows what to draw
+  C.spokeFields=spokeSet;
+}
+
+// ── Main entry ───────────────────────────────────────────
+function buildChartData(){
+  if(!rawData.length)return;
+  if(C.dataMode==='long') buildChartDataLong();
+  else buildChartDataWide();
   chartData.forEach((s,i)=>{
     if(!C.colors[s.label])C.colors[s.label]=PAL.tableau10[i%10];
   });
