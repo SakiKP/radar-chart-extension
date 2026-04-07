@@ -125,8 +125,9 @@ hr.div{border:none;border-top:1px solid #eee;margin:18px 0}
   font-size:11px;padding:6px 10px;border-radius:4px;display:none;z-index:600;
   line-height:1.6;max-width:200px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 </style>
-<!-- Tableau injects the extensions API automatically for Viz Extensions.
-     No external script needed — the tableau global is provided by Tableau's webview. -->
+<!-- Tableau Extensions API — served from same origin (GitHub Pages).
+     File downloaded by running: python download_api.py -->
+<script src="./tableau.extensions.1.latest.min.js"></script>
 </head>
 <body>
 <div id="app"><svg id="radar-svg"></svg></div>
@@ -957,4 +958,3 @@ window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,150);}
 syncPanel();
 </script>
 </body>
-</html>
