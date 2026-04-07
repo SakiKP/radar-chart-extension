@@ -5,43 +5,36 @@
 <title>Radar Chart</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-#app{width:100vw;height:100vh;position:relative;display:flex;align-items:center;justify-content:center}
+html,body{width:100%;height:100%;overflow:hidden;background:transparent;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+#app{width:100vw;height:100vh;position:relative;display:flex;
+  align-items:center;justify-content:center}
 #radar-svg{display:block;overflow:visible}
 
-/* Settings button */
+/* ── Gear button ─────────────────────────────────────── */
 #settings-btn{
-  position:fixed;top:8px;right:8px;z-index:200;
-  width:30px;height:30px;border-radius:50%;
-  background:rgba(255,255,255,.92);border:1px solid #ccc;
-  cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 1px 5px rgba(0,0,0,.15);transition:background .15s;
-}
+  position:fixed;top:8px;right:8px;z-index:200;width:30px;height:30px;
+  border-radius:50%;background:rgba(255,255,255,.92);border:1px solid #ccc;
+  cursor:pointer;font-size:15px;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 1px 5px rgba(0,0,0,.15);transition:background .15s}
 #settings-btn:hover{background:#e8f0fe}
 
-/* Format panel */
-#fp{
-  position:fixed;top:0;right:0;bottom:0;width:290px;
-  background:#fff;border-left:1px solid #ddd;
-  box-shadow:-3px 0 12px rgba(0,0,0,.1);
+/* ── Format panel ────────────────────────────────────── */
+#fp{position:fixed;top:0;right:0;bottom:0;width:290px;background:#fff;
+  border-left:1px solid #ddd;box-shadow:-3px 0 12px rgba(0,0,0,.1);
   z-index:300;display:flex;flex-direction:column;
-  transform:translateX(100%);transition:transform .25s ease;
-}
+  transform:translateX(100%);transition:transform .25s ease}
 #fp.open{transform:translateX(0)}
 .fp-hdr{display:flex;align-items:center;justify-content:space-between;
   padding:10px 14px;border-bottom:1px solid #e0e0e0;background:#f7f7f7}
 .fp-hdr h3{font-size:13px;font-weight:600;color:#333}
 .fp-x{background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1}
 .fp-x:hover{color:#333}
-
-/* Tabs */
 .fp-tabs{display:flex;background:#f0f0f0;border-bottom:1px solid #ddd;overflow-x:auto}
 .fp-tab{padding:8px 11px;font-size:11px;font-weight:500;cursor:pointer;
   color:#666;white-space:nowrap;border-bottom:2px solid transparent;transition:all .15s}
 .fp-tab.on{color:#1a73e8;border-bottom-color:#1a73e8;background:#fff}
 .fp-tab:hover:not(.on){background:#e4e4e4}
-
-/* Tab body */
 .fp-body{flex:1;overflow-y:auto;padding:12px 14px}
 .fp-page{display:none}.fp-page.on{display:block}
 .sec{font-size:10px;font-weight:700;color:#999;text-transform:uppercase;
@@ -49,82 +42,174 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
 .sec:first-child{margin-top:2px}
 .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:8px}
 .row label{font-size:11px;color:#444;min-width:88px}
-.row select,.row input[type=number],.row input[type=text]{
-  font-size:11px;border:1px solid #ccc;border-radius:3px;
-  padding:3px 6px;flex:1;max-width:130px;background:#fff;color:#333}
+.row select,.row input[type=number]{font-size:11px;border:1px solid #ccc;
+  border-radius:3px;padding:3px 6px;flex:1;max-width:130px;background:#fff;color:#333}
 .row input[type=range]{flex:1;accent-color:#1a73e8}
-.row input[type=color]{border:1px solid #ccc;border-radius:3px;padding:0;height:24px;width:40px;cursor:pointer}
+.row input[type=color]{border:1px solid #ccc;border-radius:3px;padding:0;
+  height:24px;width:40px;cursor:pointer}
 .row input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#1a73e8}
 .vl{font-size:11px;min-width:26px;text-align:right;color:#555}
-
-/* Color list */
 #color-list{display:flex;flex-direction:column;gap:7px}
 .ce{display:flex;align-items:center;gap:8px;font-size:11px;color:#333}
-.ce input[type=color]{height:22px;width:34px;border:1px solid #ccc;border-radius:3px;cursor:pointer;padding:0}
-
-/* Palette chips */
+.ce input[type=color]{height:22px;width:34px;border:1px solid #ccc;
+  border-radius:3px;cursor:pointer;padding:0}
 .pal-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
-.pal-btn{font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff}
-.pal-btn:hover{background:#e8f0fe}
-
-/* Apply btn */
+.pal-btn{font-size:10px;padding:4px 8px;border:1px solid #ccc;border-radius:3px;
+  cursor:pointer;background:#fff}.pal-btn:hover{background:#e8f0fe}
 #apply-btn{margin:12px 14px;padding:8px 0;background:#1a73e8;color:#fff;
   border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;
   width:calc(100% - 28px)}
 #apply-btn:hover{background:#1558b0}
 
-/* Data config modal */
+/* ── Setup guide ─────────────────────────────────────── */
+#guide{position:fixed;inset:0;background:rgba(255,255,255,.98);z-index:500;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow-y:auto}
+#guide.hidden{display:none}
+.guide-inner{max-width:480px;width:100%;padding:28px 24px}
+.guide-inner h2{font-size:17px;font-weight:700;color:#1a73e8;margin-bottom:6px}
+.guide-inner .sub{font-size:12px;color:#666;margin-bottom:22px;line-height:1.5}
+.guide-step{display:flex;gap:12px;margin-bottom:18px;align-items:flex-start}
+.step-num{width:24px;height:24px;border-radius:50%;background:#1a73e8;color:#fff;
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;margin-top:1px}
+.step-body{flex:1}
+.step-title{font-size:12px;font-weight:600;color:#333;margin-bottom:3px}
+.step-desc{font-size:11px;color:#666;line-height:1.6}
+.step-desc b{color:#333}
+.chip{display:inline-block;background:#f0f4ff;border:1px solid #c5d0f5;
+  border-radius:3px;padding:1px 7px;font-size:10px;font-weight:600;color:#3a5bd9}
+hr.div{border:none;border-top:1px solid #eee;margin:18px 0}
+.guide-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#guide-load{padding:10px 22px;background:#1a73e8;color:#fff;border:none;
+  border-radius:4px;font-size:12px;font-weight:600;cursor:pointer}
+#guide-load:hover{background:#1558b0}
+#guide-load:disabled{background:#9bb8f0;cursor:default}
+#guide-demo{padding:10px 18px;background:#fff;color:#555;border:1px solid #ccc;
+  border-radius:4px;font-size:12px;cursor:pointer}
+#guide-demo:hover{background:#f5f5f5}
+#guide-status{font-size:11px;color:#888;margin-top:10px;line-height:1.5;min-height:16px}
+
+/* ── Field config modal ──────────────────────────────── */
 #dc{position:fixed;inset:0;background:rgba(255,255,255,.97);z-index:400;
-  padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px;overflow-y:auto}
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;padding:24px;overflow-y:auto}
 #dc.hidden{display:none}
 #dc h2{font-size:15px;font-weight:700;color:#333}
-#dc p{font-size:12px;color:#666;text-align:center;max-width:340px}
-.dcr{display:flex;flex-direction:column;gap:4px;width:100%;max-width:340px}
+#dc .dcsub{font-size:12px;color:#666;text-align:center;max-width:360px;line-height:1.5}
+.dcr{display:flex;flex-direction:column;gap:5px;width:100%;max-width:380px}
 .dcr label{font-size:11px;font-weight:600;color:#444}
-.dcr select{padding:6px 8px;font-size:12px;border:1px solid #ccc;border-radius:4px;background:#fff}
-#dc-spokes{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px;
-  max-height:200px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:4px;padding:8px}
-.dcs-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#333}
-#dc-ok{padding:9px 28px;background:#1a73e8;color:#fff;border:none;
+.dcr select{padding:7px 8px;font-size:12px;border:1px solid #ccc;
+  border-radius:4px;background:#fff}
+.dc-list-wrap{width:100%;max-width:380px}
+.dc-list-wrap label{font-size:11px;font-weight:600;color:#444;display:block;margin-bottom:5px}
+#dc-spokes{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;
+  border:1px solid #e0e0e0;border-radius:4px;padding:8px}
+.dcs-row{display:flex;align-items:center;gap:8px;font-size:11px;color:#333;
+  padding:3px 0;cursor:pointer}
+.dcs-row:hover{background:#f8f8f8}
+.dcs-row input[type=checkbox]{accent-color:#1a73e8;width:14px;height:14px;cursor:pointer}
+.dcs-row .fname{flex:1}
+.dcs-row .dtype{font-size:10px;color:#aaa;margin-left:4px}
+.dc-btns{display:flex;gap:10px}
+#dc-ok{padding:10px 28px;background:#1a73e8;color:#fff;border:none;
   border-radius:4px;font-size:13px;font-weight:600;cursor:pointer}
 #dc-ok:hover{background:#1558b0}
-.dc-note{font-size:10px;color:#999;font-style:italic;text-align:center;max-width:340px}
+#dc-back{padding:10px 18px;background:#fff;color:#666;border:1px solid #ccc;
+  border-radius:4px;font-size:13px;cursor:pointer}
+#dc-back:hover{background:#f5f5f5}
+.dc-hint{font-size:10px;color:#aaa;font-style:italic;max-width:380px;text-align:center}
 
-/* Overlay */
-#ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;background:rgba(255,255,255,.9);z-index:500;gap:12px}
-#ov.hidden{display:none}
-.spin{width:34px;height:34px;border:3px solid #e0e0e0;border-top-color:#4e79a7;
-  border-radius:50%;animation:sp .8s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-#ov p{font-size:13px;color:#555;text-align:center;max-width:300px}
-
-/* Tooltip */
-#tt{position:fixed;pointer-events:none;background:rgba(25,25,25,.88);color:#fff;
+/* ── Tooltip ─────────────────────────────────────────── */
+#tt{position:fixed;pointer-events:none;background:rgba(20,20,20,.88);color:#fff;
   font-size:11px;padding:6px 10px;border-radius:4px;display:none;z-index:600;
   line-height:1.6;max-width:200px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 </style>
+<!-- Tableau Extensions API — required for Tableau connection -->
+<script src="https://extensiongallery.tableau.com/resources/tableau.extensions.1.latest.min.js"></script>
 </head>
 <body>
 <div id="app"><svg id="radar-svg"></svg></div>
 <button id="settings-btn" title="Format">⚙</button>
 
-<!-- Loading overlay -->
-<div id="ov"><div class="spin"></div><p id="ov-msg">Connecting to Tableau…</p></div>
+<!-- ── Setup guide ── -->
+<div id="guide">
+  <div class="guide-inner">
+    <h2>⬡ Radar Chart — Field Setup</h2>
+    <p class="sub">The radar chart reads from Tableau's Marks card.<br/>
+    Follow these steps to connect your data.</p>
 
-<!-- Data config modal -->
-<div id="dc" class="hidden">
-  <h2>⬡ Configure Radar Chart</h2>
-  <p>Select your <strong>Color/Group dimension</strong> then tick the columns that will become <strong>spokes</strong>.</p>
-  <div class="dcr"><label>Color / Group dimension</label><select id="dc-dim"></select></div>
-  <div class="dcr"><label>Spokes (measure columns)</label><div id="dc-spokes"></div></div>
-  <p class="dc-note">Tip: numeric columns make the best spokes.</p>
-  <button id="dc-ok">Apply</button>
+    <div class="guide-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Add your dimension to the Marks card</div>
+        <div class="step-desc">Drag your grouping field (e.g. <b>Spatial Unit</b>, <b>Region</b>)
+          to the <span class="chip">Detail</span> shelf on the left.
+          This becomes the <b>color / series</b> on the radar.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Add your measure fields as spokes</div>
+        <div class="step-desc">Drag each measure (e.g. <b>Cultural</b>, <b>Education</b>,
+          <b>Finance</b>, <b>Health</b>, <b>Retail</b>) also to
+          <span class="chip">Detail</span>.
+          Each measure becomes one spoke on the radar.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Click "Load Data" below</div>
+        <div class="step-desc">The extension reads all fields from the worksheet and
+          shows a configuration screen where you assign which field is
+          the dimension and which are spokes.</div>
+      </div>
+    </div>
+
+    <hr class="div"/>
+    <div class="guide-footer">
+      <button id="guide-load">Load Data</button>
+      <button id="guide-demo">View Demo Chart</button>
+    </div>
+    <div id="guide-status"></div>
+  </div>
 </div>
 
-<!-- Format panel -->
+<!-- ── Field config modal ── -->
+<div id="dc" class="hidden">
+  <h2>Configure Fields</h2>
+  <p class="dcsub">Choose which field is your <b>color/group dimension</b>
+    and which fields become <b>spokes</b> on the radar.</p>
+
+  <div class="dcr">
+    <label>Color / Group dimension</label>
+    <select id="dc-dim"></select>
+  </div>
+
+  <div class="dc-list-wrap">
+    <label>Spokes — tick the measure fields</label>
+    <div id="dc-spokes"></div>
+  </div>
+
+  <p class="dc-hint">Tip: numeric/measure fields make the best spokes.
+    String/dimension fields work best as the group.</p>
+
+  <div class="dc-btns">
+    <button id="dc-ok">Apply &amp; Draw Chart</button>
+    <button id="dc-back">← Back</button>
+  </div>
+</div>
+
+<!-- ── Format panel ── -->
 <div id="fp">
-  <div class="fp-hdr"><h3>Format Extension</h3><button class="fp-x" id="fp-x">✕</button></div>
+  <div class="fp-hdr">
+    <h3>Format Extension</h3>
+    <button class="fp-x" id="fp-x">✕</button>
+  </div>
   <div class="fp-tabs">
     <div class="fp-tab on" data-t="radar">Radar</div>
     <div class="fp-tab" data-t="grid">Grid</div>
@@ -168,8 +253,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
       <div class="row"><label>Margin px</label>
         <input type="range" id="c-mg" min="20" max="140" step="5" value="70"/>
         <span class="vl" id="c-mg-v">70</span></div>
-      <div class="row"><label>Auto range</label><input type="checkbox" id="c-ar" checked/></div>
-      <div class="row" id="row-mv" style="display:none"><label>Max value</label>
+      <div class="row"><label>Auto range</label>
+        <input type="checkbox" id="c-ar" checked/></div>
+      <div class="row" id="row-mv" style="display:none">
+        <label>Max value</label>
         <input type="number" id="c-mv" value="100" min="1"/></div>
     </div>
 
@@ -191,19 +278,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
           <option value="0">Solid</option>
           <option value="2,6">Dotted</option>
         </select></div>
-      <div class="row"><label>Grid color</label><input type="color" id="c-gc" value="#cccccc"/></div>
+      <div class="row"><label>Grid color</label>
+        <input type="color" id="c-gc" value="#cccccc"/></div>
       <div class="row"><label>Grid opacity %</label>
         <input type="range" id="c-go" min="0" max="100" step="5" value="60"/>
         <span class="vl" id="c-go-v">60</span></div>
       <div class="sec">Spokes</div>
-      <div class="row"><label>Show spokes</label><input type="checkbox" id="c-ss" checked/></div>
-      <div class="row"><label>Spoke color</label><input type="color" id="c-sc" value="#bbbbbb"/></div>
+      <div class="row"><label>Show spokes</label>
+        <input type="checkbox" id="c-ss" checked/></div>
+      <div class="row"><label>Spoke color</label>
+        <input type="color" id="c-sc" value="#bbbbbb"/></div>
     </div>
 
     <!-- COLOR -->
     <div class="fp-page" data-p="color">
       <div class="sec">Series colors</div>
-      <p style="font-size:11px;color:#666;margin-bottom:10px">Assign a color to each category.</p>
+      <p style="font-size:11px;color:#666;margin-bottom:10px">
+        Assign a color to each category.</p>
       <div id="color-list"></div>
       <div class="sec" style="margin-top:14px">Palette presets</div>
       <div class="pal-row">
@@ -217,24 +308,32 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
     <!-- LABELS -->
     <div class="fp-page" data-p="labels">
       <div class="sec">Spoke Labels</div>
-      <div class="row"><label>Show labels</label><input type="checkbox" id="c-sl" checked/></div>
+      <div class="row"><label>Show labels</label>
+        <input type="checkbox" id="c-sl" checked/></div>
       <div class="row"><label>Font size</label>
         <input type="range" id="c-sfs" min="8" max="20" step="1" value="11"/>
         <span class="vl" id="c-sfs-v">11</span></div>
       <div class="row"><label>Font weight</label>
-        <select id="c-sfw"><option value="normal">Normal</option><option value="bold" selected>Bold</option></select></div>
-      <div class="row"><label>Font color</label><input type="color" id="c-sfc" value="#333333"/></div>
+        <select id="c-sfw">
+          <option value="normal">Normal</option>
+          <option value="bold" selected>Bold</option>
+        </select></div>
+      <div class="row"><label>Font color</label>
+        <input type="color" id="c-sfc" value="#333333"/></div>
       <div class="row"><label>Padding</label>
         <input type="range" id="c-slp" min="4" max="36" step="1" value="14"/>
         <span class="vl" id="c-slp-v">14</span></div>
       <div class="sec">Axis Ticks</div>
-      <div class="row"><label>Show ticks</label><input type="checkbox" id="c-st"/></div>
+      <div class="row"><label>Show ticks</label>
+        <input type="checkbox" id="c-st"/></div>
       <div class="row"><label>Tick size</label>
         <input type="range" id="c-tfs" min="7" max="16" step="1" value="9"/>
         <span class="vl" id="c-tfs-v">9</span></div>
-      <div class="row"><label>Tick decimals</label><input type="number" id="c-td" min="0" max="4" value="0"/></div>
+      <div class="row"><label>Tick decimals</label>
+        <input type="number" id="c-td" min="0" max="4" value="0"/></div>
       <div class="sec">Legend</div>
-      <div class="row"><label>Show legend</label><input type="checkbox" id="c-lg" checked/></div>
+      <div class="row"><label>Show legend</label>
+        <input type="checkbox" id="c-lg" checked/></div>
       <div class="row"><label>Position</label>
         <select id="c-lp">
           <option value="tr">Top Right</option>
@@ -249,9 +348,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
 
     <!-- DATA -->
     <div class="fp-page" data-p="data">
-      <div class="sec">Field mapping</div>
-      <button id="reconfig-btn" style="padding:8px;background:#1a73e8;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;width:100%;margin-bottom:10px">
+      <div class="sec">Current mapping</div>
+      <div style="font-size:11px;color:#555;margin-bottom:10px;line-height:1.7;
+        background:#f9f9f9;padding:8px;border-radius:4px;border:1px solid #eee">
+        <b>Dimension:</b> <span id="info-dim" style="color:#1a73e8">—</span><br/>
+        <b>Spokes:</b> <span id="info-spokes" style="color:#1a73e8">—</span>
+      </div>
+      <button id="reconfig-btn" style="padding:8px;background:#1a73e8;color:#fff;border:none;
+        border-radius:4px;font-size:12px;cursor:pointer;width:100%;margin-bottom:8px">
         Reconfigure fields…
+      </button>
+      <button id="reload-btn" style="padding:8px;background:#fff;color:#555;
+        border:1px solid #ccc;border-radius:4px;font-size:12px;cursor:pointer;
+        width:100%;margin-bottom:10px">
+        Reload data from Tableau
       </button>
       <div class="sec">Aggregation</div>
       <div class="row"><label>Aggregate by</label>
@@ -262,17 +372,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
           <option value="min">Min</option>
         </select></div>
       <div class="sec">Tooltip</div>
-      <div class="row"><label>Show tooltip</label><input type="checkbox" id="c-tt" checked/></div>
-      <div class="row"><label>Decimals</label><input type="number" id="c-ttd" min="0" max="4" value="1"/></div>
+      <div class="row"><label>Show tooltip</label>
+        <input type="checkbox" id="c-tt" checked/></div>
+      <div class="row"><label>Decimals</label>
+        <input type="number" id="c-ttd" min="0" max="4" value="1"/></div>
     </div>
 
     <!-- SHEET -->
     <div class="fp-page" data-p="sheet">
       <div class="sec">Background</div>
-      <div class="row"><label>Transparent</label><input type="checkbox" id="c-tb" checked/></div>
-      <div class="row"><label>BG color</label><input type="color" id="c-bg" value="#ffffff"/></div>
+      <div class="row"><label>Transparent</label>
+        <input type="checkbox" id="c-tb" checked/></div>
+      <div class="row"><label>BG color</label>
+        <input type="color" id="c-bg" value="#ffffff"/></div>
       <div class="sec">Animation</div>
-      <div class="row"><label>Animate</label><input type="checkbox" id="c-an" checked/></div>
+      <div class="row"><label>Animate on draw</label>
+        <input type="checkbox" id="c-an" checked/></div>
     </div>
 
   </div><!-- /.fp-body -->
@@ -282,165 +397,275 @@ html,body{width:100%;height:100%;overflow:hidden;background:transparent;font-fam
 <div id="tt"></div>
 
 <script>
-/* =============================================================
-   RADAR CHART — STANDALONE TABLEAU VIZ EXTENSION
-   Pure vanilla JS + SVG. Zero external dependencies.
-   ============================================================= */
+/* ================================================================
+   RADAR CHART — TABLEAU VIZ EXTENSION
+   Hosted on GitHub Pages (or any HTTPS).
+   Tableau Extensions API loaded via script tag above.
+   ================================================================ */
 
-// ── Palettes ──────────────────────────────────────────────
-const PAL = {
-  tableau10: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'],
-  pastel:    ['#aec6e8','#ffb347','#ff9999','#b5ead7','#c7ceea','#ffdac1','#e0b0ff','#ffc8a2','#d4e4bc','#f8c8d4'],
-  muted:     ['#6d8b9c','#c78c56','#b05c5e','#6a9e98','#7a9e72','#c7a93e','#9b6e97','#c47e88','#8a6a55','#a89e9c'],
-  bluepurple:['#4055a8','#6272c4','#8494de','#a6b0ed','#7b4eab','#9b6bc9','#b98ce3','#d4aeef','#5e3a8c','#8059b3']
+const PAL={
+  tableau10:['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f',
+             '#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac'],
+  pastel:   ['#aec6e8','#ffb347','#ff9999','#b5ead7','#c7ceea',
+             '#ffdac1','#e0b0ff','#ffc8a2','#d4e4bc','#f8c8d4'],
+  muted:    ['#6d8b9c','#c78c56','#b05c5e','#6a9e98','#7a9e72',
+             '#c7a93e','#9b6e97','#c47e88','#8a6a55','#a89e9c'],
+  bluepurple:['#4055a8','#6272c4','#8494de','#a6b0ed','#7b4eab',
+              '#9b6bc9','#b98ce3','#d4aeef','#5e3a8c','#8059b3']
 };
 
-// ── Config ─────────────────────────────────────────────────
-let C = {
-  lineStyle:'cardinal', sw:2, fo:30,
-  ms:'circle', mz:4,
-  rot:0, mg:70,
-  ar:true, mv:100,
-  gt:'circle', gl:5, gd:'4,4',
-  gc:'#cccccc', go:60,
-  ss:true, sc:'#bbbbbb',
-  sl:true, sfs:11, sfw:'bold', sfc:'#333333', slp:14,
-  st:false, tfs:9, td:0,
-  lg:true, lp:'tr', lfs:11,
-  agg:'avg', tt:true, ttd:1,
-  tb:true, bg:'#ffffff', an:true,
-  colors:{},
-  dimField:null, spokeFields:[]
+// ── Config ──────────────────────────────────────────────
+let C={
+  lineStyle:'cardinal',sw:2,fo:30,ar:true,mv:100,
+  ms:'circle',mz:4,rot:0,mg:70,
+  gt:'circle',gl:5,gd:'4,4',gc:'#cccccc',go:60,
+  ss:true,sc:'#bbbbbb',
+  sl:true,sfs:11,sfw:'bold',sfc:'#333333',slp:14,
+  st:false,tfs:9,td:0,
+  lg:true,lp:'tr',lfs:11,
+  agg:'avg',tt:true,ttd:1,
+  tb:true,bg:'#ffffff',an:true,
+  colors:{},dimField:null,spokeFields:[]
 };
 
-// ── State ──────────────────────────────────────────────────
-let rawData=[], colDefs=[], chartData=[];
+// ── State ───────────────────────────────────────────────
+let rawData=[],colDefs=[],chartData=[],wsRef=null;
 
-// ── DOM ────────────────────────────────────────────────────
-const ov     = id('ov'),
-      ovMsg  = id('ov-msg'),
-      fp     = id('fp'),
-      dc     = id('dc'),
-      dcDim  = id('dc-dim'),
-      dcSpk  = id('dc-spokes'),
-      dcOk   = id('dc-ok'),
-      svgEl  = id('radar-svg'),
-      ttEl   = id('tt');
+// ── DOM helpers ─────────────────────────────────────────
+const $=x=>document.getElementById(x);
+const guide=$('guide'),guideSt=$('guide-status'),
+      dc=$('dc'),dcDim=$('dc-dim'),dcSpk=$('dc-spokes'),
+      svgEl=$('radar-svg'),ttEl=$('tt'),fp=$('fp');
 
-function id(x){return document.getElementById(x)}
+// ── Utility ─────────────────────────────────────────────
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-// ── Tableau init ────────────────────────────────────────────
-(async()=>{
-  // Tableau injects its API when loading local extensions.
-  // We wait briefly for it to be available.
-  let attempts=0;
-  while(typeof tableau==='undefined' && attempts++<30){
+// ================================================================
+//  TABLEAU INIT
+//  Poll for the `tableau` global (injected by Tableau's webview),
+//  then call initializeAsync.
+// ================================================================
+async function waitForTableau(maxMs=10000){
+  const t0=Date.now();
+  while(Date.now()-t0<maxMs){
+    if(typeof tableau!=='undefined'&&tableau.extensions) return true;
     await sleep(200);
   }
-  if(typeof tableau==='undefined'){
-    showOv('Demo mode — no Tableau connection detected.');
-    loadDemo(); draw(); return;
+  return false;
+}
+
+async function initTableau(){
+  setStatus('Connecting to Tableau…');
+  const found=await waitForTableau();
+  if(!found){
+    setStatus('⚠ Tableau Extensions API not found. Try reloading the extension inside Tableau.');
+    return false;
   }
   try{
-    await tableau.extensions.initializeAsync({configure:openDC});
+    // Viz extensions use initializeAsync with no arguments
+    await tableau.extensions.initializeAsync();
+
+    // Get worksheet — viz extension API is primary path
+    if(tableau.extensions.vizExtensionAPI){
+      wsRef=tableau.extensions.vizExtensionAPI.worksheet;
+    }
+
+    // Fallback: dashboard extension (shouldn't be needed but harmless)
+    if(!wsRef){
+      try{wsRef=tableau.extensions.dashboardContent.dashboard.worksheets[0];}
+      catch(e){}
+    }
+
+    if(!wsRef){
+      setStatus('⚠ Could not access worksheet. Make sure the extension is on a worksheet (not a dashboard).');
+      return false;
+    }
+
+    // Listen for filter/data changes and auto-refresh
+    try{
+      const evtName=(tableau.TableauEventType||{}).SummaryDataChanged||'summary-data-changed';
+      wsRef.addEventListener(evtName,()=>{
+        if(C.spokeFields.length) silentRefresh();
+      });
+    }catch(e){console.warn('Could not subscribe to data change events:',e);}
+
     loadCfg();
-    await fetchData();
+    setStatus('✅ Connected — worksheet: <b>'+wsRef.name+'</b>');
+    return true;
   }catch(e){
-    showOv('⚠ '+( e.message||'Could not load data. Showing demo.'));
-    loadDemo(); draw();
+    setStatus('⚠ Init error: '+(e.message||String(e)));
+    console.error('Tableau init error:',e);
+    return false;
+  }
+}
+
+async function fetchFromTableau(){
+  if(!wsRef) return false;
+  try{
+    const sd=await wsRef.getSummaryDataAsync({maxRows:100000});
+    colDefs=sd.columns.map(c=>({
+      name:c.fieldName,
+      type:(c.dataType||'').toLowerCase(),
+      idx:c.index
+    }));
+    rawData=sd.data.map(row=>
+      Object.fromEntries(colDefs.map(c=>[c.name,row[c.idx]]))
+    );
+    return rawData.length>0;
+  }catch(e){
+    console.warn('Fetch error:',e);
+    return false;
+  }
+}
+
+async function silentRefresh(){
+  const ok=await fetchFromTableau();
+  if(ok){buildChartData();draw();}
+}
+
+function setStatus(msg){guideSt.innerHTML=msg;}
+
+// ── Auto-init when inside Tableau ────────────────────────
+// If the tableau global appears quickly (i.e. we are inside Tableau),
+// auto-connect so the user doesn't need to click Load Data.
+(async()=>{
+  const found=await waitForTableau(3000); // short 3s timeout for auto-attempt
+  if(found){
+    const btn=$('guide-load');
+    btn.disabled=true;btn.textContent='Auto-connecting…';
+    const connected=await initTableau();
+    if(connected){
+      const ok=await fetchFromTableau();
+      btn.disabled=false;btn.textContent='Load Data';
+      if(ok&&colDefs.length){
+        if(C.dimField&&C.spokeFields.length&&C.spokeFields.every(f=>colDefs.some(c=>c.name===f))){
+          buildChartData();draw();guide.classList.add('hidden');updateInfo();
+        }else{
+          autoDetect();guide.classList.add('hidden');openDC();
+        }
+      }else{
+        setStatus('Connected ✅ — now drag fields to the <b>Detail</b> shelf, then click Load Data.');
+      }
+    }else{
+      btn.disabled=false;btn.textContent='Load Data';
+    }
   }
 })();
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-function showOv(m){ov.classList.remove('hidden');ovMsg.textContent=m;ov.querySelector('.spin').style.display=m.startsWith('⚠')||m.startsWith('Demo')?'none':'block'}
-function hideOv(){ov.classList.add('hidden')}
+// ── Guide buttons ───────────────────────────────────────
+$('guide-load').addEventListener('click',async function(){
+  this.disabled=true;this.textContent='Connecting…';
+  const connected=await initTableau();
+  if(!connected){this.disabled=false;this.textContent='Load Data';return;}
 
-// ── Settings persistence ────────────────────────────────────
-function saveCfg(){
-  try{tableau.extensions.settings.set('rc',JSON.stringify(C));tableau.extensions.settings.saveAsync()}catch(e){}
-}
-function loadCfg(){
-  try{const s=tableau.extensions.settings.get('rc');if(s)Object.assign(C,JSON.parse(s))}catch(e){}
-}
+  this.textContent='Reading data…';
+  const ok=await fetchFromTableau();
+  this.disabled=false;this.textContent='Load Data';
 
-// ── Fetch data ──────────────────────────────────────────────
-async function fetchData(){
-  showOv('Loading data…');
-  try{
-    const api=tableau.extensions.vizExtensionAPI;
-    const ws=api?api.worksheet:tableau.extensions.dashboardContent.dashboard.worksheets[0];
-    const sd=await ws.getSummaryDataAsync({maxRows:50000});
-    colDefs=sd.columns.map(c=>({name:c.fieldName,type:c.dataType,idx:c.index}));
-    rawData=sd.data.map(row=>Object.fromEntries(colDefs.map(c=>[c.name,row[c.idx]])));
-
-    if(!C.dimField||!C.spokeFields.length){autoDetect();openDC();}
-    else{buildChartData();draw();}
-
-    const et=tableau.TableauEventType?tableau.TableauEventType.SummaryDataChanged:'summary-data-changed';
-    ws.addEventListener(et,fetchData);
-    hideOv();
-  }catch(e){
-    console.warn(e);
-    showOv('⚠ Could not read worksheet. Showing demo data.');
-    loadDemo();draw();
+  if(!ok||!colDefs.length){
+    setStatus('⚠ No data found. Add fields to the <b>Detail</b> shelf on the Marks card first.');
+    return;
   }
-}
 
+  // Saved config still valid?
+  if(C.dimField&&C.spokeFields.length&&
+     C.spokeFields.every(f=>colDefs.some(c=>c.name===f))){
+    buildChartData();draw();
+    guide.classList.add('hidden');
+    updateInfo();
+  }else{
+    autoDetect();
+    guide.classList.add('hidden');
+    openDC();
+  }
+});
+
+$('guide-demo').addEventListener('click',()=>{
+  loadDemo();draw();guide.classList.add('hidden');
+});
+
+// ── Auto-detect fields ──────────────────────────────────
 function autoDetect(){
-  const nums=['float','integer','real'];
-  C.spokeFields=colDefs.filter(c=>nums.some(t=>(c.type||'').toLowerCase().includes(t))).map(c=>c.name);
-  const dims=colDefs.filter(c=>!nums.some(t=>(c.type||'').toLowerCase().includes(t)));
+  const NUM=['float','integer','real','number','double'];
+  const isNum=c=>NUM.some(t=>c.type.includes(t));
+  C.spokeFields=colDefs.filter(isNum).map(c=>c.name);
+  const dims=colDefs.filter(c=>!isNum(c));
   C.dimField=dims.length?dims[0].name:null;
 }
 
-// ── Data config modal ───────────────────────────────────────
+// ── Field config modal ──────────────────────────────────
 function openDC(){
   dcDim.innerHTML='<option value="">— None (single series) —</option>';
   colDefs.forEach(c=>{
     const o=document.createElement('option');
-    o.value=c.name;o.textContent=c.name+' ('+c.type+')';
+    o.value=c.name;o.textContent=c.name+(c.type?` (${c.type})`:'');
     if(c.name===C.dimField)o.selected=true;
     dcDim.appendChild(o);
   });
   dcSpk.innerHTML='';
   colDefs.forEach(c=>{
-    const r=document.createElement('div');r.className='dcs-row';
-    const cb=document.createElement('input');cb.type='checkbox';cb.value=c.name;
+    const row=document.createElement('div');
+    row.className='dcs-row';
+    row.onclick=()=>cb.click();
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.value=c.name;
+    cb.onclick=e=>e.stopPropagation();
     if(C.spokeFields.includes(c.name))cb.checked=true;
-    const l=document.createElement('label');l.textContent=c.name;
-    r.appendChild(cb);r.appendChild(l);dcSpk.appendChild(r);
+    const nm=document.createElement('span');nm.className='fname';nm.textContent=c.name;
+    const dt=document.createElement('span');dt.className='dtype';dt.textContent=c.type||'';
+    row.appendChild(cb);row.appendChild(nm);row.appendChild(dt);
+    dcSpk.appendChild(row);
   });
   dc.classList.remove('hidden');
 }
 
-dcOk.addEventListener('click',()=>{
+$('dc-ok').addEventListener('click',()=>{
   C.dimField=dcDim.value||null;
   C.spokeFields=[...dcSpk.querySelectorAll('input:checked')].map(c=>c.value);
-  if(!C.spokeFields.length){alert('Select at least one spoke field.');return;}
+  if(!C.spokeFields.length){alert('Please select at least one spoke field.');return;}
   saveCfg();dc.classList.add('hidden');
-  buildChartData();draw();hideOv();
+  buildChartData();draw();updateInfo();
 });
 
-id('reconfig-btn').addEventListener('click',openDC);
+$('dc-back').addEventListener('click',()=>{
+  dc.classList.add('hidden');guide.classList.remove('hidden');
+});
 
-// ── Build chart data ─────────────────────────────────────────
+$('reconfig-btn').addEventListener('click',()=>{fp.classList.remove('open');openDC();});
+
+$('reload-btn').addEventListener('click',async function(){
+  this.textContent='Reloading…';this.disabled=true;
+  const ok=await fetchFromTableau();
+  if(ok&&C.spokeFields.length){buildChartData();draw();}
+  else if(!ok) alert('Could not fetch data from Tableau.');
+  this.textContent='Reload data from Tableau';this.disabled=false;
+});
+
+function updateInfo(){
+  $('info-dim').textContent=C.dimField||'(none)';
+  $('info-spokes').textContent=C.spokeFields.join(', ')||'(none)';
+}
+
+// ── Build chart data ────────────────────────────────────
 function buildChartData(){
   if(!rawData.length||!C.spokeFields.length)return;
   const groups={};
   rawData.forEach(row=>{
-    const key=C.dimField?String(row[C.dimField]?.value??row[C.dimField]??'Series'):'Series';
+    const rv=C.dimField?row[C.dimField]:null;
+    const key=rv!=null?String(rv?.value!==undefined?rv.value:rv):'Series';
     if(!groups[key])groups[key]={};
     C.spokeFields.forEach(sf=>{
       if(!groups[key][sf])groups[key][sf]=[];
-      const raw=row[sf];const v=raw?.value!==undefined?raw.value:raw;
-      const n=parseFloat(v);if(!isNaN(n))groups[key][sf].push(n);
+      const v2=row[sf];
+      const v=v2?.value!==undefined?v2.value:v2;
+      const n=parseFloat(v);
+      if(!isNaN(n))groups[key][sf].push(n);
     });
   });
-  chartData=Object.entries(groups).map(([label,fields])=>({
+  chartData=Object.entries(groups).map(([label,flds])=>({
     label,
     values:Object.fromEntries(C.spokeFields.map(sf=>{
-      const arr=fields[sf]||[0];
-      let v;
+      const arr=flds[sf]||[0];let v;
       if(C.agg==='avg')v=arr.reduce((a,b)=>a+b,0)/arr.length;
       else if(C.agg==='sum')v=arr.reduce((a,b)=>a+b,0);
       else if(C.agg==='max')v=Math.max(...arr);
@@ -448,10 +673,12 @@ function buildChartData(){
       return[sf,v];
     }))
   }));
-  chartData.forEach((s,i)=>{if(!C.colors[s.label])C.colors[s.label]=PAL.tableau10[i%10];});
+  chartData.forEach((s,i)=>{
+    if(!C.colors[s.label])C.colors[s.label]=PAL.tableau10[i%10];
+  });
 }
 
-// ── Demo data ─────────────────────────────────────────────────
+// ── Demo ────────────────────────────────────────────────
 function loadDemo(){
   C.spokeFields=['Cultural','Education','Finance','Health','Retail'];
   C.dimField='Spatial Unit';
@@ -462,53 +689,59 @@ function loadDemo(){
   ];
 }
 
-/* =============================================================
-   SVG RADAR CHART — PURE VANILLA JS
-   ============================================================= */
-const SVG_NS='http://www.w3.org/2000/svg';
-function el(tag,attrs={},parent){
-  const e=document.createElementNS(SVG_NS,tag);
-  Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+// ── Settings persistence ────────────────────────────────
+function saveCfg(){
+  try{tableau.extensions.settings.set('rc',JSON.stringify(C));
+      tableau.extensions.settings.saveAsync();}catch(e){}
+}
+function loadCfg(){
+  try{const s=tableau.extensions.settings.get('rc');
+      if(s)Object.assign(C,JSON.parse(s));}catch(e){}
+}
+
+/* ================================================================
+   SVG RENDERER — pure vanilla JS
+   ================================================================ */
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){
+  const e=document.createElementNS(NS,tag);
+  Object.entries(attrs||{}).forEach(([k,v])=>e.setAttribute(k,v));
   if(parent)parent.appendChild(e);
   return e;
 }
 
 function draw(){
-  const wrap=id('app');
-  const W=wrap.clientWidth||800, H=wrap.clientHeight||600;
+  const W=window.innerWidth||800,H=window.innerHeight||600;
   const bg=C.tb?'transparent':C.bg;
   document.body.style.background=bg;
-
-  // Clear SVG
-  while(svgEl.firstChild)svgEl.removeChild(svgEl.lastChild);
+  while(svgEl.firstChild)svgEl.removeChild(svgEl.firstChild);
   svgEl.setAttribute('width',W);svgEl.setAttribute('height',H);
   svgEl.style.background=bg;
 
   if(!chartData.length||!C.spokeFields.length){
-    const t=el('text',{x:W/2,y:H/2,'text-anchor':'middle',fill:'#aaa','font-size':'13px'},svgEl);
-    t.textContent='No data — configure fields via ⚙';return;
+    const t=el('text',{x:W/2,y:H/2,'text-anchor':'middle',
+      fill:'#bbb','font-size':'13px'},svgEl);
+    t.textContent='Add fields to the Detail shelf, then click Load Data';
+    return;
   }
 
   const radius=Math.min(W,H)/2-C.mg;
-  const cx=W/2, cy=H/2;
-  const spokes=C.spokeFields, N=spokes.length;
+  const cx=W/2,cy=H/2;
+  const spokes=C.spokeFields,N=spokes.length;
   const rotR=(C.rot*Math.PI)/180;
 
-  // Max value
   let maxV=C.ar
-    ? Math.max(...chartData.flatMap(s=>spokes.map(sp=>s.values[sp]||0)))*1.1
-    : C.mv;
+    ?Math.max(...chartData.flatMap(s=>spokes.map(sp=>s.values[sp]||0)))*1.1
+    :C.mv;
   if(!maxV||maxV<=0)maxV=100;
 
-  function angle(i){return(i/N)*2*Math.PI-Math.PI/2+rotR;}
-  function pt(r,i){return{x:r*Math.cos(angle(i)),y:r*Math.sin(angle(i))};}
-  function scale(v){return(v/maxV)*radius;}
-
+  const ang=i=>(i/N)*2*Math.PI-Math.PI/2+rotR;
+  const pt=(r,i)=>({x:r*Math.cos(ang(i)),y:r*Math.sin(ang(i))});
+  const sc=v=>(v/maxV)*radius;
   const g=el('g',{transform:`translate(${cx},${cy})`},svgEl);
 
-  // ── Grid lines ────────────────────────────────────────────
-  const gop=C.go/100;
-  const dash=C.gd==='0'?null:C.gd;
+  // Grid rings/polygons
+  const gop=C.go/100,dash=C.gd==='0'?null:C.gd;
   for(let lv=C.gl;lv>=1;lv--){
     const r=(lv/C.gl)*radius;
     if(C.gt==='circle'){
@@ -523,15 +756,14 @@ function draw(){
 
   // Tick labels
   if(C.st){
-    const fmt=v=>v.toFixed(C.td);
     for(let lv=1;lv<=C.gl;lv++){
-      const val=(lv/C.gl)*maxV, r=(lv/C.gl)*radius;
+      const val=((lv/C.gl)*maxV).toFixed(C.td),r=(lv/C.gl)*radius;
       const t=el('text',{x:4,y:-r-2,'font-size':C.tfs+'px',fill:'#999','text-anchor':'start'},g);
-      t.textContent=fmt(val);
+      t.textContent=val;
     }
   }
 
-  // ── Spoke lines ───────────────────────────────────────────
+  // Spoke lines
   if(C.ss){
     spokes.forEach((_,i)=>{
       const p=pt(radius,i);
@@ -539,61 +771,40 @@ function draw(){
     });
   }
 
-  // ── Helper: smooth closed cardinal curve ──────────────────
-  function cardinalPath(pts, tension=0.4){
-    // Catmull-Rom / Cardinal closed spline
-    const n=pts.length;
-    let d='';
+  // Curve builders
+  function cardinalPath(pts,ten=0.4){
+    const n=pts.length;let d='';
     for(let i=0;i<n;i++){
-      const p0=pts[(i-1+n)%n], p1=pts[i], p2=pts[(i+1)%n], p3=pts[(i+2)%n];
-      const cp1x=p1.x+(p2.x-p0.x)*tension/2;
-      const cp1y=p1.y+(p2.y-p0.y)*tension/2;
-      const cp2x=p2.x-(p3.x-p1.x)*tension/2;
-      const cp2y=p2.y-(p3.y-p1.y)*tension/2;
-      if(i===0)d+=`M${p1.x},${p1.y}`;
-      d+=` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`;
+      const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+      const c1x=p1.x+(p2.x-p0.x)*ten/2,c1y=p1.y+(p2.y-p0.y)*ten/2;
+      const c2x=p2.x-(p3.x-p1.x)*ten/2,c2y=p2.y-(p3.y-p1.y)*ten/2;
+      d+=(i===0?`M${p1.x},${p1.y}`:'')+` C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
     }
     return d+'Z';
   }
-
-  function linearPath(pts){
-    return 'M'+pts.map(p=>`${p.x},${p.y}`).join('L')+'Z';
-  }
-
+  const linPath=pts=>'M'+pts.map(p=>`${p.x},${p.y}`).join('L')+'Z';
   function stepPath(pts){
-    const n=pts.length;
-    let d='';
+    const n=pts.length;let d='';
     for(let i=0;i<n;i++){
-      const a=pts[i], b=pts[(i+1)%n];
-      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
-      if(i===0)d+=`M${a.x},${a.y}`;
-      d+=` L${mx},${my} L${b.x},${b.y}`;
+      const a=pts[i],b=pts[(i+1)%n];
+      d+=(i===0?`M${a.x},${a.y}`:'')+` L${(a.x+b.x)/2},${(a.y+b.y)/2} L${b.x},${b.y}`;
     }
     return d+'Z';
   }
 
-  // ── Series ────────────────────────────────────────────────
   const fillOp=C.fo/100;
 
+  // Series
   chartData.forEach(series=>{
     const color=C.colors[series.label]||'#4e79a7';
-    const pts=spokes.map((sp,i)=>{const r=scale(series.values[sp]||0);return pt(r,i);});
+    const pts=spokes.map((sp,i)=>pt(sc(series.values[sp]||0),i));
+    const pd=C.lineStyle==='cardinal'?cardinalPath(pts):C.lineStyle==='step'?stepPath(pts):linPath(pts);
 
-    let pathD;
-    if(C.lineStyle==='cardinal')pathD=cardinalPath(pts);
-    else if(C.lineStyle==='step')pathD=stepPath(pts);
-    else pathD=linearPath(pts);
-
-    // Animated fill
-    const path=el('path',{
-      d:pathD,fill:color,'fill-opacity':0,
-      stroke:color,'stroke-width':C.sw,'stroke-opacity':0,
-      'stroke-linejoin':'round'
-    },g);
+    const path=el('path',{d:pd,fill:color,'fill-opacity':0,
+      stroke:color,'stroke-width':C.sw,'stroke-opacity':0,'stroke-linejoin':'round'},g);
 
     if(C.an){
-      // CSS animation via style
-      path.style.transition='fill-opacity .7s ease, stroke-opacity .7s ease';
+      path.style.transition='fill-opacity .65s ease,stroke-opacity .65s ease';
       requestAnimationFrame(()=>{
         path.setAttribute('fill-opacity',fillOp);
         path.setAttribute('stroke-opacity',.9);
@@ -606,29 +817,21 @@ function draw(){
     // Markers
     if(C.ms!=='none'&&C.mz>0){
       spokes.forEach((sp,i)=>{
-        const r=scale(series.values[sp]||0);
-        const{x,y}=pt(r,i);
-        const sz=C.mz;
+        const {x,y}=pt(sc(series.values[sp]||0),i),sz=C.mz;
         let m;
-        if(C.ms==='square'){
-          m=el('rect',{x:x-sz/2,y:y-sz/2,width:sz,height:sz,
-            fill:color,stroke:'#fff','stroke-width':1},g);
-        }else if(C.ms==='diamond'){
-          m=el('polygon',{
-            points:`${x},${y-sz} ${x+sz},${y} ${x},${y+sz} ${x-sz},${y}`,
-            fill:color,stroke:'#fff','stroke-width':1},g);
-        }else{
+        if(C.ms==='square')
+          m=el('rect',{x:x-sz/2,y:y-sz/2,width:sz,height:sz,fill:color,stroke:'#fff','stroke-width':1},g);
+        else if(C.ms==='diamond')
+          m=el('polygon',{points:`${x},${y-sz} ${x+sz},${y} ${x},${y+sz} ${x-sz},${y}`,fill:color,stroke:'#fff','stroke-width':1},g);
+        else
           m=el('circle',{cx:x,cy:y,r:sz/2,fill:color,stroke:'#fff','stroke-width':1},g);
-        }
-        m.style.cursor='pointer';
-
+        m.style.cursor='crosshair';
         if(C.tt){
-          m.addEventListener('mousemove',evt=>{
-            const v=(series.values[sp]||0).toFixed(C.ttd);
-            ttEl.innerHTML=`<strong>${series.label}</strong><br/>${sp}: ${v}`;
+          m.addEventListener('mousemove',ev=>{
+            ttEl.innerHTML=`<strong>${series.label}</strong><br/>${sp}: ${(series.values[sp]||0).toFixed(C.ttd)}`;
             ttEl.style.display='block';
-            ttEl.style.left=(evt.clientX+14)+'px';
-            ttEl.style.top=(evt.clientY-32)+'px';
+            ttEl.style.left=(ev.clientX+14)+'px';
+            ttEl.style.top=(ev.clientY-32)+'px';
           });
           m.addEventListener('mouseleave',()=>ttEl.style.display='none');
         }
@@ -636,34 +839,24 @@ function draw(){
     }
   });
 
-  // ── Spoke labels ──────────────────────────────────────────
+  // Spoke labels
   if(C.sl){
     spokes.forEach((sp,i)=>{
-      const a=angle(i);
-      const lx=(radius+C.slp)*Math.cos(a);
-      const ly=(radius+C.slp)*Math.sin(a);
-      let anchor='middle';
-      if(Math.cos(a)>0.15)anchor='start';
-      else if(Math.cos(a)<-0.15)anchor='end';
-      const t=el('text',{
-        x:lx,y:ly,'text-anchor':anchor,
-        'dominant-baseline':'middle',
-        'font-size':C.sfs+'px','font-weight':C.sfw,fill:C.sfc
-      },g);
+      const a=ang(i);
+      const lx=(radius+C.slp)*Math.cos(a),ly=(radius+C.slp)*Math.sin(a);
+      const anchor=Math.cos(a)>0.15?'start':Math.cos(a)<-0.15?'end':'middle';
+      const t=el('text',{x:lx,y:ly,'text-anchor':anchor,'dominant-baseline':'middle',
+        'font-size':C.sfs+'px','font-weight':C.sfw,fill:C.sfc},g);
       t.textContent=sp;
     });
   }
 
-  // ── Legend ────────────────────────────────────────────────
+  // Legend
   if(C.lg&&chartData.length){
-    const lfs=C.lfs, pad=12;
-    const lW=140, lH=chartData.length*(lfs+7)+16;
-    let lx,ly;
-    if(C.lp==='tr'){lx=W/2-cx+cx-lW-pad;ly=-cy+pad;}
-    else if(C.lp==='tl'){lx=-cx+pad;ly=-cy+pad;}
-    else if(C.lp==='br'){lx=W/2-cx+cx-lW-pad;ly=cy-lH-pad;}
-    else{lx=-cx+pad;ly=cy-lH-pad;}
-
+    const lfs=C.lfs,pad=14,lW=150,lH=chartData.length*(lfs+7)+16;
+    const pos={tr:[cx-lW-pad,-cy+pad],tl:[-cx+pad,-cy+pad],
+               br:[cx-lW-pad,cy-lH-pad],bl:[-cx+pad,cy-lH-pad]};
+    const [lx,ly]=pos[C.lp]||pos.tr;
     const lg=el('g',{transform:`translate(${lx},${ly})`},g);
     el('rect',{width:lW,height:lH,rx:4,fill:'rgba(255,255,255,.88)',stroke:'#e0e0e0'},lg);
     chartData.forEach((s,i)=>{
@@ -679,23 +872,9 @@ function draw(){
   buildColorList();
 }
 
-// ── Color list ──────────────────────────────────────────────
-function buildColorList(){
-  const cl=id('color-list');cl.innerHTML='';
-  chartData.forEach(s=>{
-    const entry=document.createElement('div');entry.className='ce';
-    const ci=document.createElement('input');ci.type='color';
-    ci.value=C.colors[s.label]||'#4e79a7';ci.dataset.l=s.label;
-    ci.addEventListener('change',()=>{C.colors[s.label]=ci.value;draw();});
-    const lbl=document.createElement('span');lbl.textContent=s.label;
-    entry.appendChild(ci);entry.appendChild(lbl);cl.appendChild(entry);
-  });
-}
-
-/* =============================================================
+/* ================================================================
    FORMAT PANEL WIRING
-   ============================================================= */
-// Tab switching
+   ================================================================ */
 document.querySelectorAll('.fp-tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
     document.querySelectorAll('.fp-tab').forEach(t=>t.classList.remove('on'));
@@ -705,72 +884,73 @@ document.querySelectorAll('.fp-tab').forEach(tab=>{
   });
 });
 
-// Panel open/close
-id('settings-btn').addEventListener('click',()=>{fp.classList.toggle('open');syncPanel();});
-id('fp-x').addEventListener('click',()=>fp.classList.remove('open'));
+$('settings-btn').addEventListener('click',()=>{fp.classList.toggle('open');syncPanel();});
+$('fp-x').addEventListener('click',()=>fp.classList.remove('open'));
 
-// Slider wiring
-function wireS(eid,unit,fn){
-  const e=id(eid),v=id(eid+'-v');
+function wireS(id,unit,fn){
+  const e=$(id),v=$(id+'-v');
   e.addEventListener('input',()=>{if(v)v.textContent=e.value+(unit||'');fn&&fn(+e.value);});
 }
-wireS('c-sw','',v=>C.sw=v);wireS('c-fo','',v=>C.fo=v);
-wireS('c-mz','',v=>C.mz=v);wireS('c-rot','°',v=>C.rot=v);
-wireS('c-mg','',v=>C.mg=v);wireS('c-gl','',v=>C.gl=v);
-wireS('c-go','',v=>C.go=v);wireS('c-sfs','',v=>C.sfs=v);
-wireS('c-slp','',v=>C.slp=v);wireS('c-tfs','',v=>C.tfs=v);
-wireS('c-lfs','',v=>C.lfs=v);
+wireS('c-sw','');wireS('c-fo','');wireS('c-mz','');wireS('c-rot','°');
+wireS('c-mg','');wireS('c-gl','');wireS('c-go','');wireS('c-sfs','');
+wireS('c-slp','');wireS('c-tfs','');wireS('c-lfs','');
 
-id('c-ar').addEventListener('change',e=>{
-  id('row-mv').style.display=e.target.checked?'none':'flex';
+$('c-ar').addEventListener('change',e=>{
+  $('row-mv').style.display=e.target.checked?'none':'flex';
 });
 
-// Palette presets
 document.querySelectorAll('.pal-btn').forEach(b=>{
   b.addEventListener('click',()=>{
     const pal=PAL[b.dataset.pal]||PAL.tableau10;
     chartData.forEach((s,i)=>C.colors[s.label]=pal[i%pal.length]);
-    draw();
+    draw();buildColorList();
   });
 });
 
-// Apply button
-id('apply-btn').addEventListener('click',()=>{
-  function g(i){const e=id(i);if(!e)return;return e.type==='checkbox'?e.checked:e.value;}
-  function n(i){return parseFloat(g(i));}
+$('apply-btn').addEventListener('click',()=>{
+  const g=i=>{const e=$(i);return e?e.type==='checkbox'?e.checked:e.value:undefined;};
+  const n=i=>parseFloat(g(i));
   C.lineStyle=g('c-lineStyle');C.sw=n('c-sw');C.fo=n('c-fo');
-  C.ar=g('c-ar');C.mv=n('c-mv');
-  C.ms=g('c-ms');C.mz=n('c-mz');
-  C.rot=n('c-rot');C.mg=n('c-mg');
-  C.gt=g('c-gt');C.gl=n('c-gl');C.gd=g('c-gd');
-  C.gc=g('c-gc');C.go=n('c-go');
-  C.ss=g('c-ss');C.sc=g('c-sc');
+  C.ar=g('c-ar');C.mv=n('c-mv');C.ms=g('c-ms');C.mz=n('c-mz');
+  C.rot=n('c-rot');C.mg=n('c-mg');C.gt=g('c-gt');C.gl=n('c-gl');
+  C.gd=g('c-gd');C.gc=g('c-gc');C.go=n('c-go');C.ss=g('c-ss');C.sc=g('c-sc');
   C.sl=g('c-sl');C.sfs=n('c-sfs');C.sfw=g('c-sfw');C.sfc=g('c-sfc');C.slp=n('c-slp');
   C.st=g('c-st');C.tfs=n('c-tfs');C.td=parseInt(g('c-td'));
   C.lg=g('c-lg');C.lp=g('c-lp');C.lfs=n('c-lfs');
   C.agg=g('c-agg');C.tt=g('c-tt');C.ttd=parseInt(g('c-ttd'));
   C.tb=g('c-tb');C.bg=g('c-bg');C.an=g('c-an');
-  buildChartData();draw();saveCfg();
+  buildChartData();draw();saveCfg();updateInfo();
 });
 
-// Sync panel from config
 function syncPanel(){
-  function s(i,v){const e=id(i);if(!e)return;e.type==='checkbox'?e.checked=!!v:e.value=v;}
-  function ss(i,v,u=''){s(i,v);const vl=id(i+'-v');if(vl)vl.textContent=v+(u);}
+  const s=(i,v)=>{const e=$(i);if(e)e.type==='checkbox'?e.checked=!!v:e.value=v;};
+  const ss=(i,v,u='')=>{s(i,v);const vl=$(i+'-v');if(vl)vl.textContent=v+u;};
   s('c-lineStyle',C.lineStyle);ss('c-sw',C.sw);ss('c-fo',C.fo);
-  s('c-ar',C.ar);s('c-mv',C.mv);id('row-mv').style.display=C.ar?'none':'flex';
+  s('c-ar',C.ar);s('c-mv',C.mv);$('row-mv').style.display=C.ar?'none':'flex';
   s('c-ms',C.ms);ss('c-mz',C.mz);ss('c-rot',C.rot,'°');ss('c-mg',C.mg);
-  s('c-gt',C.gt);ss('c-gl',C.gl);s('c-gd',C.gd);
-  s('c-gc',C.gc);ss('c-go',C.go);s('c-ss',C.ss);s('c-sc',C.sc);
-  s('c-sl',C.sl);ss('c-sfs',C.sfs);s('c-sfw',C.sfw);s('c-sfc',C.sfc);ss('c-slp',C.slp);
-  s('c-st',C.st);ss('c-tfs',C.tfs);s('c-td',C.td);
-  s('c-lg',C.lg);s('c-lp',C.lp);ss('c-lfs',C.lfs);
+  s('c-gt',C.gt);ss('c-gl',C.gl);s('c-gd',C.gd);s('c-gc',C.gc);
+  ss('c-go',C.go);s('c-ss',C.ss);s('c-sc',C.sc);
+  s('c-sl',C.sl);ss('c-sfs',C.sfs);s('c-sfw',C.sfw);
+  s('c-sfc',C.sfc);ss('c-slp',C.slp);s('c-st',C.st);
+  ss('c-tfs',C.tfs);s('c-td',C.td);s('c-lg',C.lg);
+  s('c-lp',C.lp);ss('c-lfs',C.lfs);
   s('c-agg',C.agg);s('c-tt',C.tt);s('c-ttd',C.ttd);
   s('c-tb',C.tb);s('c-bg',C.bg);s('c-an',C.an);
-  buildColorList();
+  buildColorList();updateInfo();
 }
 
-// Resize
+function buildColorList(){
+  const cl=$('color-list');if(!cl)return;cl.innerHTML='';
+  chartData.forEach(s=>{
+    const e=document.createElement('div');e.className='ce';
+    const ci=document.createElement('input');ci.type='color';
+    ci.value=C.colors[s.label]||'#4e79a7';
+    ci.addEventListener('change',()=>{C.colors[s.label]=ci.value;draw();});
+    const lbl=document.createElement('span');lbl.textContent=s.label;
+    e.appendChild(ci);e.appendChild(lbl);cl.appendChild(e);
+  });
+}
+
 let rt;
 window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,150);});
 
