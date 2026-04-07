@@ -554,13 +554,40 @@ async function initTableau(){
       return false;
     }
 
-    // Listen for filter/data changes and auto-refresh
+    // ── Subscribe to ALL change events that affect the chart ──
+    const ET = tableau.TableauEventType || {};
+
+    // 1. Summary data changed (filters, marks, data source refresh)
     try{
-      const evtName=(tableau.TableauEventType||{}).SummaryDataChanged||'summary-data-changed';
-      wsRef.addEventListener(evtName,()=>{
-        if(C.spokeFields.length) silentRefresh();
-      });
-    }catch(e){console.warn('Could not subscribe to data change events:',e);}
+      const evtData = ET.SummaryDataChanged || 'summary-data-changed';
+      wsRef.addEventListener(evtData, () => { liveRefresh('data'); });
+      console.log('[RadarChart] Subscribed to SummaryDataChanged');
+    }catch(e){ console.warn('[RadarChart] SummaryDataChanged subscribe failed:',e); }
+
+    // 2. Filter changed
+    try{
+      const evtFilter = ET.FilterChanged || 'filter-changed';
+      wsRef.addEventListener(evtFilter, () => { liveRefresh('filter'); });
+      console.log('[RadarChart] Subscribed to FilterChanged');
+    }catch(e){ console.warn('[RadarChart] FilterChanged subscribe failed:',e); }
+
+    // 3. Parameter changed — subscribe at workbook level
+    try{
+      const evtParam = ET.ParameterChanged || 'parameter-changed';
+      // Try worksheet-level first, then workbook-level
+      try{
+        wsRef.addEventListener(evtParam, () => { liveRefresh('param'); });
+      }catch(e2){
+        tableau.extensions.workbook.addEventListener(evtParam, () => { liveRefresh('param'); });
+      }
+      console.log('[RadarChart] Subscribed to ParameterChanged');
+    }catch(e){ console.warn('[RadarChart] ParameterChanged subscribe failed:',e); }
+
+    // 4. Marks selection changed
+    try{
+      const evtMarks = ET.MarkSelectionChanged || 'mark-selection-changed';
+      wsRef.addEventListener(evtMarks, () => { liveRefresh('marks'); });
+    }catch(e){}
 
     loadCfg();
     setStatus('✅ Connected — worksheet: <b>'+wsRef.name+'</b>');
@@ -591,10 +618,36 @@ async function fetchFromTableau(){
   }
 }
 
-async function silentRefresh(){
-  const ok=await fetchFromTableau();
-  if(ok){buildChartData();draw();}
+// ── Live refresh — debounced, triggered by any Tableau event ──
+let _refreshTimer=null;
+function liveRefresh(reason){
+  // Debounce: if multiple events fire at once (common with parameters),
+  // wait 120ms and only refresh once.
+  clearTimeout(_refreshTimer);
+  _refreshTimer=setTimeout(async()=>{
+    console.log('[RadarChart] Live refresh triggered by:', reason);
+    const ok=await fetchFromTableau();
+    if(!ok){ console.warn('[RadarChart] Fetch returned no data'); return; }
+
+    // In long format, always re-derive spokes from the new data
+    // (categories may have changed due to filter/parameter)
+    if(C.dataMode==='long' && C.categoryField && C.valueField){
+      buildChartData(); // buildChartDataLong re-derives C.spokeFields automatically
+      draw();
+      updateInfo();
+      return;
+    }
+
+    // Wide format: spokes are fixed columns, just redraw
+    if(C.spokeFields && C.spokeFields.length){
+      buildChartData();
+      draw();
+      updateInfo();
+    }
+  }, 120);
 }
+
+async function silentRefresh(){ liveRefresh('manual'); }
 
 function setStatus(msg){guideSt.innerHTML=msg;}
 
@@ -611,7 +664,12 @@ function setStatus(msg){guideSt.innerHTML=msg;}
       const ok=await fetchFromTableau();
       btn.disabled=false;btn.textContent='Load Data';
       if(ok&&colDefs.length){
-        if(C.dimField&&C.spokeFields.length&&C.spokeFields.every(f=>colDefs.some(c=>c.name===f))){
+        const wideReady = C.dataMode==='wide' && C.spokeFields.length &&
+                          C.spokeFields.every(f=>colDefs.some(c=>c.name===f));
+        const longReady = C.dataMode==='long' && C.categoryField && C.valueField &&
+                          colDefs.some(c=>c.name===C.categoryField) &&
+                          colDefs.some(c=>c.name===C.valueField);
+        if(wideReady || longReady){
           buildChartData();draw();guide.classList.add('hidden');updateInfo();
         }else{
           autoDetect();guide.classList.add('hidden');openDC();
@@ -641,8 +699,12 @@ $('guide-load').addEventListener('click',async function(){
   }
 
   // Saved config still valid?
-  if(C.dimField&&C.spokeFields.length&&
-     C.spokeFields.every(f=>colDefs.some(c=>c.name===f))){
+  const wideOk = C.dataMode==='wide' && C.spokeFields.length &&
+                 C.spokeFields.every(f=>colDefs.some(c=>c.name===f));
+  const longOk = C.dataMode==='long' && C.categoryField && C.valueField &&
+                 colDefs.some(c=>c.name===C.categoryField) &&
+                 colDefs.some(c=>c.name===C.valueField);
+  if(wideOk || longOk){
     buildChartData();draw();
     guide.classList.add('hidden');
     updateInfo();
