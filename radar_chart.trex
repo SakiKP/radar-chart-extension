@@ -7,7 +7,7 @@
     <author name="Custom Viz" email="admin@example.com" organization="Custom Viz" website="https://example.com"/>
     <min-api-version>1.10</min-api-version>
     <source-location>
-        <url>https://YOUR-USERNAME.github.io/YOUR-REPO-NAME/index.html</url>
+        <url>https://sakikp.github.io/radar-chart-extension/index.html</url>
     </source-location>
     <icon>iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAlhJREFUOI2Nkl1IU2EYx3/nONfO2ca2OTc3nUvJrcwsKcqirqKrICq66CKIqKAgCIqIoC6KiJKKIgihi6CLIKIiMghasxRuoWK6Oa7pcE7Xue/TxdqmLgh74IF/eN//8/we3oeUkn+RABwkEgHYYGgYlm0DgLECx7YpOjkKQPejOKq3KMhXuXVK3i0RlEXbFiGEEPjzA0BmMY4QQghBKEopFBKEA0IupZBCCCGEIExmk0kIg98AAAAA</icon>
     <permissions>
