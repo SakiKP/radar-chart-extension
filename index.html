@@ -143,31 +143,36 @@ hr.div{border:none;border-top:1px solid #eee;margin:18px 0}
     <div class="guide-step">
       <div class="step-num">1</div>
       <div class="step-body">
-        <div class="step-title">Add your dimension to the Marks card</div>
-        <div class="step-desc">Drag your grouping field (e.g. <b>Spatial Unit</b>, <b>Region</b>)
-          to the <span class="chip">Detail</span> shelf on the left.
-          This becomes the <b>color / series</b> on the radar.</div>
+        <div class="step-title">Drag your group field to <span class="chip">Groups</span></div>
+        <div class="step-desc">E.g. <b>Spatial Unit</b>, <b>Region</b>.
+          Each unique value becomes a coloured polygon on the radar.</div>
       </div>
     </div>
 
     <div class="guide-step">
       <div class="step-num">2</div>
       <div class="step-body">
-        <div class="step-title">Add your measure fields as spokes</div>
-        <div class="step-desc">Drag each measure (e.g. <b>Cultural</b>, <b>Education</b>,
-          <b>Finance</b>, <b>Health</b>, <b>Retail</b>) also to
-          <span class="chip">Detail</span>.
-          Each measure becomes one spoke on the radar.</div>
+        <div class="step-title">Drag your category field to <span class="chip">Spokes</span></div>
+        <div class="step-desc">E.g. <b>Parameter</b> (if using long format) or individual
+          measure columns. Each category / measure becomes one spoke on the radar.</div>
       </div>
     </div>
 
     <div class="guide-step">
       <div class="step-num">3</div>
       <div class="step-body">
+        <div class="step-title">Drag your measure to <span class="chip">Values</span></div>
+        <div class="step-desc">E.g. <b>AVG(Select Pram Avg Value…)</b>.
+          This is the numeric value plotted on each spoke.</div>
+      </div>
+    </div>
+
+    <div class="guide-step">
+      <div class="step-num">4</div>
+      <div class="step-body">
         <div class="step-title">Click "Load Data" below</div>
-        <div class="step-desc">The extension reads all fields from the worksheet and
-          shows a configuration screen where you assign which field is
-          the dimension and which are spokes.</div>
+        <div class="step-desc">The extension reads from the three shelves above,
+          respecting all filters and parameters set in Tableau.</div>
       </div>
     </div>
 
@@ -596,93 +601,103 @@ async function initTableau(){
   }
 }
 
-// ── Parse a DataTable from Tableau API into colDefs + rawData ─
+// ── Parse Tableau DataTable into colDefs + rawData ────────
 function parseDataTable(sd){
   if(!sd) return false;
-  // columns can be a property or method depending on version
-  const cols = typeof sd.columns === 'function' ? sd.columns() : sd.columns;
-  if(!cols || !cols.length){
-    console.warn('[RadarChart] DataTable has no columns');
-    return false;
-  }
+  const cols = sd.columns || (typeof sd.getColumns==='function' ? sd.getColumns() : []);
+  if(!cols.length){ console.warn('[RadarChart] DataTable has 0 columns'); return false; }
   colDefs = cols.map((c,i)=>({
     name: c.fieldName || c.name || ('col'+i),
-    type: (c.dataType||c.type||'').toLowerCase(),
-    idx:  c.index!=null ? c.index : i
+    type: (c.dataType || c.type || '').toLowerCase(),
+    idx:  c.index != null ? c.index : i
   }));
-  const rows = typeof sd.data === 'function' ? sd.data() : sd.data;
+  const rows = sd.data || (typeof sd.getData==='function' ? sd.getData() : []);
   rawData = (rows||[]).map(row=>
-    Object.fromEntries(colDefs.map(c=>[c.name, row[c.idx]]))
+    Object.fromEntries(colDefs.map(c=>{
+      const cell = row[c.idx];
+      return [c.name, cell];
+    }))
   );
-  console.log('[RadarChart] Parsed — cols:', colDefs.map(c=>c.name), 'rows:', rawData.length);
+  console.log('[RadarChart] Parsed — cols:', colDefs.map(c=>c.name+':'+c.type), 'rows:', rawData.length);
   return true;
 }
 
-async function fetchFromTableau(){
-  if(!wsRef){
-    console.warn('[RadarChart] wsRef is null');
-    return false;
-  }
-
-  // ── Strategy 1: Direct data source query (most reliable for viz extensions) ──
+// ── Get encoding mappings from Marks card shelves ──────────
+// Returns { group: fieldName|null, spokes: [fieldName,...], values: fieldName|null }
+function getEncodingFields(){
   try{
-    const sources = await wsRef.getDataSourcesAsync();
-    console.log('[RadarChart] Data sources:', sources.map(s=>s.name));
-    for(const ds of sources){
-      try{
-        // Try logical tables first
-        const tables = await ds.getLogicalTablesAsync();
-        for(const tbl of tables){
-          try{
-            const dt = await ds.getLogicalTableDataAsync(tbl.id, {maxRows:100000});
-            if(dt && parseDataTable(dt) && colDefs.length){
-              console.log('[RadarChart] Got data via getLogicalTableDataAsync');
-              return true;
-            }
-          }catch(e){ console.warn('[RadarChart] logicalTableData failed:',e.message); }
-        }
-      }catch(e){ console.warn('[RadarChart] getLogicalTablesAsync failed:',e.message); }
+    const vizAPI = tableau.extensions.vizExtensionAPI;
+    if(!vizAPI || !vizAPI.worksheet) return null;
+    const ws = vizAPI.worksheet;
+    // getEncodingMappings returns a Map of encoding-id -> EncodingMapping
+    if(typeof ws.getEncodingMappings !== 'function') return null;
+    const map = ws.getEncodingMappings();
+    const get = id => {
+      const enc = map.get ? map.get(id) : map[id];
+      if(!enc) return null;
+      const fields = enc.fields || enc.field || [];
+      return Array.isArray(fields) ? fields.map(f=>f.name||f.fieldName||f) : [fields];
+    };
+    return {
+      group:  (get('group') ||[])[0] || null,
+      spokes:  get('spokes') || [],
+      values: (get('values')||[])[0] || null
+    };
+  }catch(e){
+    console.warn('[RadarChart] getEncodingMappings failed:', e.message);
+    return null;
+  }
+}
 
-      // Try underlying data on the data source directly
-      try{
-        const dt = await ds.getUnderlyingDataAsync({maxRows:100000, includeAllColumns:true});
-        if(dt && parseDataTable(dt) && colDefs.length){
-          console.log('[RadarChart] Got data via ds.getUnderlyingDataAsync');
-          return true;
-        }
-      }catch(e){ console.warn('[RadarChart] ds.getUnderlyingDataAsync failed:',e.message); }
-    }
-  }catch(e){ console.warn('[RadarChart] getDataSourcesAsync failed:',e.message); }
+async function fetchFromTableau(){
+  if(!wsRef){ console.warn('[RadarChart] wsRef is null'); return false; }
 
-  // ── Strategy 2: getSummaryDataAsync variants ──
-  const summaryOpts = [
+  // getSummaryDataAsync now returns only the fields on the custom encoding shelves
+  // (Groups, Spokes, Values) and respects all Tableau filters.
+  const opts = [
     {maxRows:0, ignoreAliases:false, ignoreSelection:false},
-    {maxRows:100000},
     {maxRows:0},
     {},
   ];
-  for(const opts of summaryOpts){
+  for(const opt of opts){
     try{
-      const dt = await wsRef.getSummaryDataAsync(opts);
+      const dt = await wsRef.getSummaryDataAsync(opt);
       if(dt && parseDataTable(dt) && colDefs.length){
-        console.log('[RadarChart] Got data via getSummaryDataAsync', opts);
+        console.log('[RadarChart] getSummaryDataAsync OK with', JSON.stringify(opt));
+
+        // Auto-apply encoding shelf assignments if available
+        const enc = getEncodingFields();
+        if(enc){
+          console.log('[RadarChart] Encoding mappings:', enc);
+          if(enc.group)  C.dimField      = enc.group;
+          if(enc.values) C.valueField    = enc.values;
+          if(enc.spokes && enc.spokes.length){
+            // Spokes shelf used: wide format
+            C.dataMode   = 'wide';
+            C.spokeFields = enc.spokes;
+          } else if(enc.values){
+            // Only value + group → long format, category field = first non-group, non-value col
+            C.dataMode = 'long';
+            const taken = new Set([enc.group, enc.values].filter(Boolean));
+            const catCol = colDefs.find(c=>!taken.has(c.name));
+            if(catCol) C.categoryField = catCol.name;
+          }
+        }
         return true;
       }
-    }catch(e){ console.warn('[RadarChart] getSummaryDataAsync failed:', JSON.stringify(opts), e.message); }
+    }catch(e){ console.warn('[RadarChart] getSummaryDataAsync failed:', JSON.stringify(opt), e.message); }
   }
 
-  // ── Strategy 3: getUnderlyingDataAsync on worksheet ──
+  // Fallback: getUnderlyingDataAsync on worksheet (doesn't need encoding)
   try{
-    const dt = await wsRef.getUnderlyingDataAsync({maxRows:100000, includeAllColumns:true});
+    const dt = await wsRef.getUnderlyingDataAsync({maxRows:100000, includeAllColumns:false});
     if(dt && parseDataTable(dt) && colDefs.length){
-      console.log('[RadarChart] Got data via wsRef.getUnderlyingDataAsync');
+      console.log('[RadarChart] Got data via getUnderlyingDataAsync (fallback)');
       return true;
     }
-  }catch(e){ console.warn('[RadarChart] wsRef.getUnderlyingDataAsync failed:',e.message); }
+  }catch(e){ console.warn('[RadarChart] getUnderlyingDataAsync failed:', e.message); }
 
-  // ── All failed ──
-  console.error('[RadarChart] All data fetch strategies failed.');
-  setStatus('⚠ Could not read data. Open F12 → Console and look for [RadarChart] lines, then share them.');
+  setStatus('⚠ Could not read data. Check F12 → Console for [RadarChart] details.');
   return false;
 }
 
