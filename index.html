@@ -583,11 +583,8 @@ async function initTableau(){
       console.log('[RadarChart] Subscribed to ParameterChanged');
     }catch(e){ console.warn('[RadarChart] ParameterChanged subscribe failed:',e); }
 
-    // 4. Marks selection changed
-    try{
-      const evtMarks = ET.MarkSelectionChanged || 'mark-selection-changed';
-      wsRef.addEventListener(evtMarks, () => { liveRefresh('marks'); });
-    }catch(e){}
+    // Note: MarkSelectionChanged intentionally NOT subscribed — it fires
+    // on every hover/click and would cause constant unnecessary refreshes.
 
     loadCfg();
     setStatus('✅ Connected — worksheet: <b>'+wsRef.name+'</b>');
@@ -600,22 +597,54 @@ async function initTableau(){
 }
 
 async function fetchFromTableau(){
-  if(!wsRef) return false;
-  try{
-    const sd=await wsRef.getSummaryDataAsync({maxRows:100000});
-    colDefs=sd.columns.map(c=>({
-      name:c.fieldName,
-      type:(c.dataType||'').toLowerCase(),
-      idx:c.index
-    }));
-    rawData=sd.data.map(row=>
-      Object.fromEntries(colDefs.map(c=>[c.name,row[c.idx]]))
-    );
-    return rawData.length>0;
-  }catch(e){
-    console.warn('Fetch error:',e);
+  if(!wsRef){
+    console.warn('[RadarChart] fetchFromTableau: wsRef is null');
     return false;
   }
+  // Try multiple fetch strategies — different Tableau versions/modes need different options
+  const strategies = [
+    // Standard with row limit
+    () => wsRef.getSummaryDataAsync({ maxRows: 100000 }),
+    // No limit (maxRows:0 = all rows in some versions)
+    () => wsRef.getSummaryDataAsync({ maxRows: 0 }),
+    // Minimal options
+    () => wsRef.getSummaryDataAsync({}),
+    // No options at all
+    () => wsRef.getSummaryDataAsync(),
+  ];
+
+  let lastErr = null;
+  for(const strategy of strategies){
+    try{
+      const sd = await strategy();
+      if(!sd || !sd.columns){ continue; }
+
+      colDefs = sd.columns.map(c=>({
+        name: c.fieldName,
+        type: (c.dataType||'').toLowerCase(),
+        idx:  c.index
+      }));
+      rawData = sd.data.map(row =>
+        Object.fromEntries(colDefs.map(c => [c.name, row[c.idx]]))
+      );
+
+      console.log('[RadarChart] Fetch OK — rows:', rawData.length, 'cols:', colDefs.map(c=>c.name));
+
+      // Return true even if 0 rows — let the caller decide what to do
+      // (0 rows can happen when all filter values are deselected, which is valid)
+      return true;
+
+    }catch(e){
+      lastErr = e;
+      console.warn('[RadarChart] Fetch strategy failed:', e.message||e);
+    }
+  }
+
+  // All strategies failed
+  console.error('[RadarChart] All fetch strategies failed. Last error:', lastErr);
+  setStatus('⚠ Data fetch error: '+(lastErr?.message||String(lastErr))+
+            '. Check F12 console for details.');
+  return false;
 }
 
 // ── Live refresh — debounced, triggered by any Tableau event ──
@@ -674,8 +703,11 @@ function setStatus(msg){guideSt.innerHTML=msg;}
         }else{
           autoDetect();guide.classList.add('hidden');openDC();
         }
+      }else if(!colDefs.length){
+        setStatus('Connected ✅ — drag fields to the <b>Detail</b> shelf, then click <b>Load Data</b>.');
       }else{
-        setStatus('Connected ✅ — now drag fields to the <b>Detail</b> shelf, then click Load Data.');
+        // Has columns but 0 rows — filters might be too narrow, still open config
+        autoDetect(); guide.classList.add('hidden'); openDC();
       }
     }else{
       btn.disabled=false;btn.textContent='Load Data';
@@ -693,9 +725,19 @@ $('guide-load').addEventListener('click',async function(){
   const ok=await fetchFromTableau();
   this.disabled=false;this.textContent='Load Data';
 
-  if(!ok||!colDefs.length){
-    setStatus('⚠ No data found. Add fields to the <b>Detail</b> shelf on the Marks card first.');
+  if(!ok){
+    // fetchFromTableau already set an error status — just stop here
     return;
+  }
+  if(!colDefs.length){
+    setStatus('⚠ No columns found. Make sure at least one field is on the <b>Detail</b> shelf.');
+    return;
+  }
+
+  // 0 rows is OK — can happen when all filter values deselected
+  // Still show config so user can set up fields
+  if(rawData.length===0){
+    setStatus('Connected ✅ — no rows match the current filters. Adjust your filters to see data.');
   }
 
   // Saved config still valid?
