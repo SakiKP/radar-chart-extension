@@ -125,8 +125,8 @@ hr.div{border:none;border-top:1px solid #eee;margin:18px 0}
   font-size:11px;padding:6px 10px;border-radius:4px;display:none;z-index:600;
   line-height:1.6;max-width:200px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 </style>
-<!-- Tableau Extensions API — required for Tableau connection -->
-<script src="https://extensiongallery.tableau.com/resources/tableau.extensions.1.latest.min.js"></script>
+<!-- Tableau injects the extensions API automatically for Viz Extensions.
+     No external script needed — the tableau global is provided by Tableau's webview. -->
 </head>
 <body>
 <div id="app"><svg id="radar-svg"></svg></div>
@@ -445,7 +445,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 //  Poll for the `tableau` global (injected by Tableau's webview),
 //  then call initializeAsync.
 // ================================================================
-async function waitForTableau(maxMs=10000){
+async function waitForTableau(maxMs=8000){
   const t0=Date.now();
   while(Date.now()-t0<maxMs){
     if(typeof tableau!=='undefined'&&tableau.extensions) return true;
@@ -458,7 +458,7 @@ async function initTableau(){
   setStatus('Connecting to Tableau…');
   const found=await waitForTableau();
   if(!found){
-    setStatus('⚠ Tableau Extensions API not found. Try reloading the extension inside Tableau.');
+    setStatus('⚠ Not connected — are you inside Tableau? Click <b>Load Data</b> to retry, or use <b>View Demo Chart</b>.');
     return false;
   }
   try{
@@ -529,7 +529,7 @@ function setStatus(msg){guideSt.innerHTML=msg;}
 // If the tableau global appears quickly (i.e. we are inside Tableau),
 // auto-connect so the user doesn't need to click Load Data.
 (async()=>{
-  const found=await waitForTableau(3000); // short 3s timeout for auto-attempt
+  const found=await waitForTableau(5000); // 5s timeout for auto-attempt
   if(found){
     const btn=$('guide-load');
     btn.disabled=true;btn.textContent='Auto-connecting…';
