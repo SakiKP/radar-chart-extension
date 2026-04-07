@@ -958,3 +958,39 @@ $('apply-btn').addEventListener('click',()=>{
   buildChartData();draw();saveCfg();updateInfo();
 });
 
+function syncPanel(){
+  const s=(i,v)=>{const e=$(i);if(e)e.type==='checkbox'?e.checked=!!v:e.value=v;};
+  const ss=(i,v,u='')=>{s(i,v);const vl=$(i+'-v');if(vl)vl.textContent=v+u;};
+  s('c-lineStyle',C.lineStyle);ss('c-sw',C.sw);ss('c-fo',C.fo);
+  s('c-ar',C.ar);s('c-mv',C.mv);$('row-mv').style.display=C.ar?'none':'flex';
+  s('c-ms',C.ms);ss('c-mz',C.mz);ss('c-rot',C.rot,'°');ss('c-mg',C.mg);
+  s('c-gt',C.gt);ss('c-gl',C.gl);s('c-gd',C.gd);s('c-gc',C.gc);
+  ss('c-go',C.go);s('c-ss',C.ss);s('c-sc',C.sc);
+  s('c-sl',C.sl);ss('c-sfs',C.sfs);s('c-sfw',C.sfw);
+  s('c-sfc',C.sfc);ss('c-slp',C.slp);s('c-st',C.st);
+  ss('c-tfs',C.tfs);s('c-td',C.td);s('c-lg',C.lg);
+  s('c-lp',C.lp);ss('c-lfs',C.lfs);
+  s('c-agg',C.agg);s('c-tt',C.tt);s('c-ttd',C.ttd);
+  s('c-tb',C.tb);s('c-bg',C.bg);s('c-an',C.an);
+  buildColorList();updateInfo();
+}
+
+function buildColorList(){
+  const cl=$('color-list');if(!cl)return;cl.innerHTML='';
+  chartData.forEach(s=>{
+    const e=document.createElement('div');e.className='ce';
+    const ci=document.createElement('input');ci.type='color';
+    ci.value=C.colors[s.label]||'#4e79a7';
+    ci.addEventListener('change',()=>{C.colors[s.label]=ci.value;draw();});
+    const lbl=document.createElement('span');lbl.textContent=s.label;
+    e.appendChild(ci);e.appendChild(lbl);cl.appendChild(e);
+  });
+}
+
+let rt;
+window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,150);});
+
+syncPanel();
+</script>
+</body>
+</html>
