@@ -596,54 +596,93 @@ async function initTableau(){
   }
 }
 
-async function fetchFromTableau(){
-  if(!wsRef){
-    console.warn('[RadarChart] fetchFromTableau: wsRef is null');
+// ── Parse a DataTable from Tableau API into colDefs + rawData ─
+function parseDataTable(sd){
+  if(!sd) return false;
+  // columns can be a property or method depending on version
+  const cols = typeof sd.columns === 'function' ? sd.columns() : sd.columns;
+  if(!cols || !cols.length){
+    console.warn('[RadarChart] DataTable has no columns');
     return false;
   }
-  // Try multiple fetch strategies — different Tableau versions/modes need different options
-  const strategies = [
-    // Standard with row limit
-    () => wsRef.getSummaryDataAsync({ maxRows: 100000 }),
-    // No limit (maxRows:0 = all rows in some versions)
-    () => wsRef.getSummaryDataAsync({ maxRows: 0 }),
-    // Minimal options
-    () => wsRef.getSummaryDataAsync({}),
-    // No options at all
-    () => wsRef.getSummaryDataAsync(),
-  ];
+  colDefs = cols.map((c,i)=>({
+    name: c.fieldName || c.name || ('col'+i),
+    type: (c.dataType||c.type||'').toLowerCase(),
+    idx:  c.index!=null ? c.index : i
+  }));
+  const rows = typeof sd.data === 'function' ? sd.data() : sd.data;
+  rawData = (rows||[]).map(row=>
+    Object.fromEntries(colDefs.map(c=>[c.name, row[c.idx]]))
+  );
+  console.log('[RadarChart] Parsed — cols:', colDefs.map(c=>c.name), 'rows:', rawData.length);
+  return true;
+}
 
-  let lastErr = null;
-  for(const strategy of strategies){
-    try{
-      const sd = await strategy();
-      if(!sd || !sd.columns){ continue; }
-
-      colDefs = sd.columns.map(c=>({
-        name: c.fieldName,
-        type: (c.dataType||'').toLowerCase(),
-        idx:  c.index
-      }));
-      rawData = sd.data.map(row =>
-        Object.fromEntries(colDefs.map(c => [c.name, row[c.idx]]))
-      );
-
-      console.log('[RadarChart] Fetch OK — rows:', rawData.length, 'cols:', colDefs.map(c=>c.name));
-
-      // Return true even if 0 rows — let the caller decide what to do
-      // (0 rows can happen when all filter values are deselected, which is valid)
-      return true;
-
-    }catch(e){
-      lastErr = e;
-      console.warn('[RadarChart] Fetch strategy failed:', e.message||e);
-    }
+async function fetchFromTableau(){
+  if(!wsRef){
+    console.warn('[RadarChart] wsRef is null');
+    return false;
   }
 
-  // All strategies failed
-  console.error('[RadarChart] All fetch strategies failed. Last error:', lastErr);
-  setStatus('⚠ Data fetch error: '+(lastErr?.message||String(lastErr))+
-            '. Check F12 console for details.');
+  // ── Strategy 1: Direct data source query (most reliable for viz extensions) ──
+  try{
+    const sources = await wsRef.getDataSourcesAsync();
+    console.log('[RadarChart] Data sources:', sources.map(s=>s.name));
+    for(const ds of sources){
+      try{
+        // Try logical tables first
+        const tables = await ds.getLogicalTablesAsync();
+        for(const tbl of tables){
+          try{
+            const dt = await ds.getLogicalTableDataAsync(tbl.id, {maxRows:100000});
+            if(dt && parseDataTable(dt) && colDefs.length){
+              console.log('[RadarChart] Got data via getLogicalTableDataAsync');
+              return true;
+            }
+          }catch(e){ console.warn('[RadarChart] logicalTableData failed:',e.message); }
+        }
+      }catch(e){ console.warn('[RadarChart] getLogicalTablesAsync failed:',e.message); }
+
+      // Try underlying data on the data source directly
+      try{
+        const dt = await ds.getUnderlyingDataAsync({maxRows:100000, includeAllColumns:true});
+        if(dt && parseDataTable(dt) && colDefs.length){
+          console.log('[RadarChart] Got data via ds.getUnderlyingDataAsync');
+          return true;
+        }
+      }catch(e){ console.warn('[RadarChart] ds.getUnderlyingDataAsync failed:',e.message); }
+    }
+  }catch(e){ console.warn('[RadarChart] getDataSourcesAsync failed:',e.message); }
+
+  // ── Strategy 2: getSummaryDataAsync variants ──
+  const summaryOpts = [
+    {maxRows:0, ignoreAliases:false, ignoreSelection:false},
+    {maxRows:100000},
+    {maxRows:0},
+    {},
+  ];
+  for(const opts of summaryOpts){
+    try{
+      const dt = await wsRef.getSummaryDataAsync(opts);
+      if(dt && parseDataTable(dt) && colDefs.length){
+        console.log('[RadarChart] Got data via getSummaryDataAsync', opts);
+        return true;
+      }
+    }catch(e){ console.warn('[RadarChart] getSummaryDataAsync failed:', JSON.stringify(opts), e.message); }
+  }
+
+  // ── Strategy 3: getUnderlyingDataAsync on worksheet ──
+  try{
+    const dt = await wsRef.getUnderlyingDataAsync({maxRows:100000, includeAllColumns:true});
+    if(dt && parseDataTable(dt) && colDefs.length){
+      console.log('[RadarChart] Got data via wsRef.getUnderlyingDataAsync');
+      return true;
+    }
+  }catch(e){ console.warn('[RadarChart] wsRef.getUnderlyingDataAsync failed:',e.message); }
+
+  // ── All failed ──
+  console.error('[RadarChart] All data fetch strategies failed.');
+  setStatus('⚠ Could not read data. Open F12 → Console and look for [RadarChart] lines, then share them.');
   return false;
 }
 
