@@ -466,19 +466,54 @@ async function initTableau(){
     // Viz extensions use initializeAsync with no arguments
     await tableau.extensions.initializeAsync();
 
-    // Get worksheet — viz extension API is primary path
-    if(tableau.extensions.vizExtensionAPI){
-      wsRef=tableau.extensions.vizExtensionAPI.worksheet;
+    // Log everything available so we can diagnose version differences
+    const ext = tableau.extensions;
+    console.log('[RadarChart] tableau.extensions keys:', Object.keys(ext));
+    console.log('[RadarChart] vizExtensionAPI:', ext.vizExtensionAPI);
+    console.log('[RadarChart] worksheetContent:', ext.worksheetContent);
+    console.log('[RadarChart] dashboardContent:', ext.dashboardContent);
+
+    // Try every known access path across Tableau versions
+    // Path 1: Standard viz extension API (Tableau 2022.3+)
+    if(ext.vizExtensionAPI && ext.vizExtensionAPI.worksheet){
+      wsRef = ext.vizExtensionAPI.worksheet;
+      console.log('[RadarChart] Got worksheet via vizExtensionAPI');
+    }
+    // Path 2: worksheetContent (some versions)
+    if(!wsRef && ext.worksheetContent && ext.worksheetContent.worksheet){
+      wsRef = ext.worksheetContent.worksheet;
+      console.log('[RadarChart] Got worksheet via worksheetContent');
+    }
+    // Path 3: Direct worksheet property
+    if(!wsRef && ext.worksheet){
+      wsRef = ext.worksheet;
+      console.log('[RadarChart] Got worksheet via direct .worksheet');
+    }
+    // Path 4: Dashboard fallback (if somehow loaded as dashboard ext)
+    if(!wsRef){
+      try{
+        wsRef = ext.dashboardContent.dashboard.worksheets[0];
+        console.log('[RadarChart] Got worksheet via dashboardContent');
+      }catch(e){}
+    }
+    // Path 5: Scan all properties for anything with getSummaryDataAsync
+    if(!wsRef){
+      for(const key of Object.keys(ext)){
+        const val = ext[key];
+        if(val && typeof val.getSummaryDataAsync === 'function'){
+          wsRef = val; console.log('[RadarChart] Got worksheet via property scan, key:', key); break;
+        }
+        if(val && val.worksheet && typeof val.worksheet.getSummaryDataAsync === 'function'){
+          wsRef = val.worksheet; console.log('[RadarChart] Got worksheet via scan+.worksheet, key:', key); break;
+        }
+        if(val && val.worksheets && val.worksheets[0]){
+          wsRef = val.worksheets[0]; console.log('[RadarChart] Got worksheet via scan+.worksheets[0], key:', key); break;
+        }
+      }
     }
 
-    // Fallback: dashboard extension (shouldn't be needed but harmless)
     if(!wsRef){
-      try{wsRef=tableau.extensions.dashboardContent.dashboard.worksheets[0];}
-      catch(e){}
-    }
-
-    if(!wsRef){
-      setStatus('⚠ Could not access worksheet. Make sure the extension is on a worksheet (not a dashboard).');
+      setStatus('⚠ Could not access worksheet. Open the browser console (F12) and look for [RadarChart] log lines — please share them for diagnosis.');
       return false;
     }
 
@@ -923,38 +958,3 @@ $('apply-btn').addEventListener('click',()=>{
   buildChartData();draw();saveCfg();updateInfo();
 });
 
-function syncPanel(){
-  const s=(i,v)=>{const e=$(i);if(e)e.type==='checkbox'?e.checked=!!v:e.value=v;};
-  const ss=(i,v,u='')=>{s(i,v);const vl=$(i+'-v');if(vl)vl.textContent=v+u;};
-  s('c-lineStyle',C.lineStyle);ss('c-sw',C.sw);ss('c-fo',C.fo);
-  s('c-ar',C.ar);s('c-mv',C.mv);$('row-mv').style.display=C.ar?'none':'flex';
-  s('c-ms',C.ms);ss('c-mz',C.mz);ss('c-rot',C.rot,'°');ss('c-mg',C.mg);
-  s('c-gt',C.gt);ss('c-gl',C.gl);s('c-gd',C.gd);s('c-gc',C.gc);
-  ss('c-go',C.go);s('c-ss',C.ss);s('c-sc',C.sc);
-  s('c-sl',C.sl);ss('c-sfs',C.sfs);s('c-sfw',C.sfw);
-  s('c-sfc',C.sfc);ss('c-slp',C.slp);s('c-st',C.st);
-  ss('c-tfs',C.tfs);s('c-td',C.td);s('c-lg',C.lg);
-  s('c-lp',C.lp);ss('c-lfs',C.lfs);
-  s('c-agg',C.agg);s('c-tt',C.tt);s('c-ttd',C.ttd);
-  s('c-tb',C.tb);s('c-bg',C.bg);s('c-an',C.an);
-  buildColorList();updateInfo();
-}
-
-function buildColorList(){
-  const cl=$('color-list');if(!cl)return;cl.innerHTML='';
-  chartData.forEach(s=>{
-    const e=document.createElement('div');e.className='ce';
-    const ci=document.createElement('input');ci.type='color';
-    ci.value=C.colors[s.label]||'#4e79a7';
-    ci.addEventListener('change',()=>{C.colors[s.label]=ci.value;draw();});
-    const lbl=document.createElement('span');lbl.textContent=s.label;
-    e.appendChild(ci);e.appendChild(lbl);cl.appendChild(e);
-  });
-}
-
-let rt;
-window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,150);});
-
-syncPanel();
-</script>
-</body>
